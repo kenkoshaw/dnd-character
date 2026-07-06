@@ -20,14 +20,23 @@ export function showLanding(root) {
     localStorage.setItem('vtt_site_pw', pw);
     const cid = crypto.randomUUID().replaceAll('-', '');
     try {
-      // Creation rule validates meta/pw server-side in this single set();
-      // deleted immediately after so the site password never sits readable
-      // in campaign data.
+      // Creation rule validates meta/pw server-side in this single set().
       await store.write(`campaigns/${cid}`, { meta: { name, createdAt: Date.now(), pw } });
-      await store.del(`campaigns/${cid}/meta/pw`);
-      location.hash = `#/c/${cid}`;
     } catch {
       err.textContent = 'Creation rejected — wrong site password?';
+      return;
     }
+    // Scrub the site password from campaign data; retry — leaving it readable
+    // would leak the shared password to anyone with the campaign link.
+    for (let i = 0; i < 3; i++) {
+      try {
+        await store.del(`campaigns/${cid}/meta/pw`);
+        location.hash = `#/c/${cid}`;
+        return;
+      } catch {
+        await new Promise(r => setTimeout(r, 500 * (i + 1)));
+      }
+    }
+    err.textContent = 'Campaign created, but password cleanup failed — check your connection and try creating again.';
   };
 }
