@@ -2,6 +2,7 @@ import * as store from '../store.js';
 import { sessionId } from '../session.js';
 import { processTokenImage } from '../imageUtil.js';
 import { esc } from './esc.js';
+import { ctx } from '../campaign.js';
 
 // onRole({ kind: 'dm' }) or onRole({ kind: 'char', charId })
 export function showRolePopup(root, cid, onRole) {
@@ -25,6 +26,7 @@ export function showRolePopup(root, cid, onRole) {
     store.sub(`campaigns/${cid}/characters`, v => { chars = v || {}; renderList(); }),
     store.sub(`campaigns/${cid}/dmClaimedBy`, v => { dmClaimed = v; renderList(); }),
   ];
+  ctx.unsubs?.push(...unsubs); // popup subs die with the campaign if never closed
 
   function renderList() {
     const list = wrap.querySelector('#roleList');

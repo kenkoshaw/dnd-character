@@ -33,9 +33,9 @@ export function createWorld(viewport) {
 
   function startPan(e) {
     if (panPointer !== null) return; // one pan at a time
-    panPointer = e.pointerId;
     const sx = e.clientX - view.panX, sy = e.clientY - view.panY;
     viewport.setPointerCapture(e.pointerId); // keeps events coming even off-window
+    panPointer = e.pointerId;
     const move = ev => {
       if (ev.pointerId !== panPointer) return;
       view.panX = ev.clientX - sx; view.panY = ev.clientY - sy; apply();

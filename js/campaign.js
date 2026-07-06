@@ -4,6 +4,8 @@ import { showRolePopup } from './ui/rolePopup.js';
 import { createWorld } from './world.js';
 import { createMapLayer } from './render/mapLayer.js';
 import { createGridLayer } from './render/gridLayer.js';
+import { createRail } from './ui/rail.js';
+import { showDmPanel } from './ui/dmPanel.js';
 
 // Shared per-campaign context, extended by later tasks.
 export const ctx = {
@@ -69,6 +71,7 @@ function watchKick(root, charId) {
     if (kickReason(ch, sessionId)) { unsub(); toast('You were removed — pick a role.'); pickRole(root); }
   });
   kickUnsub = unsub;
+  ctx.unsubs?.push(unsub);
 }
 
 export async function releaseRole(root) {
@@ -76,6 +79,7 @@ export async function releaseRole(root) {
   // through the local watchKick subscription, which must see no active role
   // (else it fires a spurious kick toast and a second stacked popup).
   const prev = ctx.role;
+  if (!prev) return; // release already in flight or no role held
   ctx.role = null;
   if (prev?.kind === 'dm') await store.release(`campaigns/${ctx.cid}/dmClaimedBy`);
   if (prev?.kind === 'char') await store.release(`campaigns/${ctx.cid}/characters/${prev.charId}/claimedBy`);
@@ -83,14 +87,20 @@ export async function releaseRole(root) {
 }
 
 function startUi(root, role) {
-  // Placeholder until Task 10 adds the rail; shows current role + release.
-  document.querySelector('#roleTag')?.remove();
-  const tag = document.createElement('div');
-  tag.id = 'roleTag';
-  tag.style.cssText = 'position:fixed;top:10px;right:10px;z-index:60';
-  tag.innerHTML = `<button id="releaseBtn">${role.kind === 'dm' ? 'DM' : 'release role'}</button>`;
-  document.body.appendChild(tag);
-  tag.querySelector('#releaseBtn').onclick = () => releaseRole(root);
+  const rail = createRail(role);
+  ctx.rail = rail;
+  if (role.kind === 'dm') {
+    rail.button('☁', 'Fog of war', b => rail.setTool('fog', b));      // handler Task 12
+    rail.button('🚪', 'Doors', b => rail.setTool('door', b));          // handler Task 14
+    rail.button('👾', 'Monsters', () => {});                            // wired Task 15
+    rail.button('⚙', 'Settings', () => showDmPanel(rail));
+  }
+  rail.button('📏', 'Ruler on/off', b => {                              // used from Task 13
+    const on = localStorage.getItem('vtt_ruler') !== 'off';
+    localStorage.setItem('vtt_ruler', on ? 'off' : 'on');
+    b.classList.toggle('active', !on);
+  });
+  rail.button('⏏', 'Release role', () => releaseRole(root));
 }
 
 export function toast(msg) {
