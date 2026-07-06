@@ -1,6 +1,9 @@
 import * as store from './store.js';
 import { sessionId, kickReason } from './session.js';
 import { showRolePopup } from './ui/rolePopup.js';
+import { createWorld } from './world.js';
+import { createMapLayer } from './render/mapLayer.js';
+import { createGridLayer } from './render/gridLayer.js';
 
 // Shared per-campaign context, extended by later tasks.
 export const ctx = {
@@ -15,7 +18,31 @@ export function enterCampaign(root, cid, meta) {
   const viewport = document.createElement('div');
   viewport.id = 'viewport';
   root.appendChild(viewport);
-  // Task 9 mounts world/map layers into viewport here.
+
+  ctx.world = createWorld(viewport);
+  ctx.layers = {
+    map: createMapLayer(ctx.world.el),
+    grid: createGridLayer(ctx.world.el),
+    // later tasks append: doors, monsters, fog, characters, overlay (this order)
+  };
+
+  let unsubMap = null;
+  store.sub(`campaigns/${cid}/activeMapId`, mapId => {
+    ctx.activeMapId = mapId;
+    unsubMap?.();
+    if (!mapId) { ctx.layers.map.clear(); return; }
+    unsubMap = store.sub(`campaigns/${cid}/maps/${mapId}`, map => {
+      if (!map?.image) return;
+      ctx.grid = map.grid;
+      ctx.mapSize = { w: map.image.w, h: map.image.h };
+      ctx.startTile = map.startTile || null;
+      ctx.revealed = new Set(Object.keys(map.fog || {}));
+      ctx.layers.map.setImage(map.image);
+      ctx.layers.grid.draw(map.grid, map.image.w, map.image.h);
+      ctx.onMapData?.(map); // hook for fog/token/door layers added later
+    });
+  });
+
   pickRole(root);
 }
 
