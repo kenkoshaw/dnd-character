@@ -48,6 +48,8 @@ export function createTokenLayer(worldEl) {
 
   // First arrival on a map: my own claimed character spawns at the start tile.
   function maybeSpawn(id, ch) {
+    // Deliberately redundant: DM and the owning player may both spawn-write;
+    // the value is deterministic (start-tile center) so the writes converge.
     const mine = ctx.role?.kind === 'char' && ctx.role.charId === id && ch.claimedBy === sessionId;
     const dm = ctx.role?.kind === 'dm';
     if (!(mine || dm) || !ctx.startTile || !ctx.grid) return;
@@ -89,6 +91,7 @@ export function createTokenLayer(worldEl) {
     ctx.onDragUpdate?.({ start, current: start, speed, active: true }); // ruler hook (Task 13)
 
     const move = ev => {
+      if (ev.pointerId !== e.pointerId) return;
       let w = ctx.world.toWorld(ev);
       if (!isDm) w = clampToRevealed(w.x, w.y, last, ctx.grid, ctx.revealed);
       last = w;
@@ -101,21 +104,30 @@ export function createTokenLayer(worldEl) {
         streamPosition(posPath, start, last);
       }
     };
-    const up = () => {
-      el.releasePointerCapture(e.pointerId);
-      el.classList.remove('dragging');
+    // cancelled = pointer lost (alt-tab, touch cancel): no final write; the next
+    // render snaps the token back to its authoritative stored position.
+    const finish = cancelled => {
       el.removeEventListener('pointermove', move);
-      el.removeEventListener('pointerup', up);
+      el.removeEventListener('pointerup', onUp);
+      el.removeEventListener('pointercancel', onCancel);
+      el.removeEventListener('lostpointercapture', onCancel);
+      try { el.releasePointerCapture(e.pointerId); } catch {}
+      el.classList.remove('dragging');
       // moved tokens suppress the click that follows pointerup (see monster
       // HP panel in Task 15, which opens on plain clicks)
-      if (Math.hypot(last.x - start.x, last.y - start.y) > 3) el.dataset.dragged = '1';
+      if (!cancelled && Math.hypot(last.x - start.x, last.y - start.y) > 3) el.dataset.dragged = '1';
       draggingId = null;
-      store.patch(posPath, { x: last.x, y: last.y });
+      if (!cancelled) store.patch(posPath, { x: last.x, y: last.y });
       store.del(`campaigns/${ctx.cid}/drags/${sessionId}`);
       ctx.onDragUpdate?.({ active: false });
+      if (cancelled) renderCharacters(ctx.characters);
     };
+    const onUp = ev => { if (ev.pointerId === e.pointerId) finish(false); };
+    const onCancel = ev => { if (ev.pointerId === e.pointerId) finish(true); };
     el.addEventListener('pointermove', move);
-    el.addEventListener('pointerup', up);
+    el.addEventListener('pointerup', onUp);
+    el.addEventListener('pointercancel', onCancel);
+    el.addEventListener('lostpointercapture', onCancel);
     return true;
   }
 
