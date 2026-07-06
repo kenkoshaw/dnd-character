@@ -55,7 +55,7 @@ export function enterCampaign(root, cid, meta) {
       ctx.mapSize = { w: map.image.w, h: map.image.h };
       ctx.startTile = map.startTile || null;
       ctx.revealed = new Set(Object.keys(map.fog || {}));
-      ctx.layers.fog.draw(ctx.revealed);
+      ctx.layers.fog.draw(ctx.revealed, ctx.fogPreview || null);
       ctx.layers.tokens.renderMonsters?.(map.monsters); // culling refresh (Task 15)
       ctx.layers.map.setImage(map.image);
       ctx.layers.grid.draw(map.grid, map.image.w, map.image.h);

@@ -10,8 +10,10 @@ export function createFogLayer(worldEl, beforeEl) {
   function draw(revealedSet, preview = null) {
     if (!ctx.grid || !(ctx.grid.cellPx > 0) || !ctx.mapSize.w) return;
     const { w, h } = ctx.mapSize;
-    canvas.width = w; canvas.height = h;
     const g = canvas.getContext('2d');
+    // Assigning width/height reallocs + clears even when unchanged — guard it.
+    if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+    else g.clearRect(0, 0, w, h);
     const isDm = ctx.role?.kind === 'dm';
     g.fillStyle = '#000';
     g.globalAlpha = isDm ? 0.5 : 1;

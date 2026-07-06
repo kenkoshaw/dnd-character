@@ -13,14 +13,17 @@ export function createFogTool(rail) {
     const startKey = cellKey(startCell.col, startCell.row);
     const mode = strokeMode(startKey, ctx.revealed);
     const cells = new Set([startKey]);
-    ctx.layers.fog.draw(ctx.revealed, { mode, cells });
+    // Live preview shared via ctx so the map subscription's redraws (concurrent
+    // writes land mid-stroke) keep the in-progress stroke visible.
+    ctx.fogPreview = { mode, cells };
+    ctx.layers.fog.draw(ctx.revealed, ctx.fogPreview);
 
     const move = ev => {
       if (ev.pointerId !== e.pointerId) return;
       const w = ctx.world.toWorld(ev);
       const c = cellOf(w.x, w.y, ctx.grid);
       const k = cellKey(c.col, c.row);
-      if (!cells.has(k)) { cells.add(k); ctx.layers.fog.draw(ctx.revealed, { mode, cells }); }
+      if (!cells.has(k)) { cells.add(k); ctx.layers.fog.draw(ctx.revealed, ctx.fogPreview); }
     };
     // Commit on release AND on pointer cancel — a half-painted stroke is
     // better committed than silently lost with a stale preview on screen.
@@ -29,6 +32,7 @@ export function createFogTool(rail) {
       removeEventListener('pointermove', move);
       removeEventListener('pointerup', up);
       removeEventListener('pointercancel', up);
+      ctx.fogPreview = null;
       const updates = strokeUpdates(mode, [...cells], ctx.revealed);
       if (Object.keys(updates).length)
         store.patch(`campaigns/${ctx.cid}/maps/${ctx.activeMapId}/fog`, updates);
