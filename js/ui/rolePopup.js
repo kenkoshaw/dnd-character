@@ -48,12 +48,14 @@ export function showRolePopup(root, cid, onRole) {
 
   async function take(kind, path, charId) {
     err.textContent = '';
-    if (!(await store.claim(path))) { err.textContent = 'Already claimed — pick another.'; return; }
-    if (kind === 'char' && chars[charId]?.hidden) {
-      await store.write(`campaigns/${cid}/characters/${charId}/hidden`, null); // claiming un-hides
-    }
-    close();
-    onRole(kind === 'dm' ? { kind } : { kind, charId });
+    try {
+      if (!(await store.claim(path))) { err.textContent = 'Already claimed — pick another.'; return; }
+      if (kind === 'char' && chars[charId]?.hidden) {
+        await store.write(`campaigns/${cid}/characters/${charId}/hidden`, null); // claiming un-hides
+      }
+      close();
+      onRole(kind === 'dm' ? { kind } : { kind, charId });
+    } catch (e) { err.textContent = e.message; }
   }
 
   wrap.querySelector('#ncCreate').onclick = async () => {
@@ -67,8 +69,16 @@ export function showRolePopup(root, cid, onRole) {
       const charId = crypto.randomUUID().replaceAll('-', '');
       await store.write(`campaigns/${cid}/characters/${charId}`,
         { name, speed, imageB64: b64, claimedBy: sessionId });
+      // The write above sets claimedBy for instant UI; this claim() transaction
+      // exists to register the onDisconnect presence release, not for race-safety.
       const won = await store.claim(`campaigns/${cid}/characters/${charId}/claimedBy`);
-      if (!won) { err.textContent = 'Claim failed, try again.'; return; }
+      if (!won) {
+        // No presence hook exists yet for this node — delete it or it's stuck
+        // "taken" forever with a dead owner.
+        await store.del(`campaigns/${cid}/characters/${charId}`);
+        err.textContent = 'Claim failed, try again.';
+        return;
+      }
       close();
       onRole({ kind: 'char', charId });
     } catch (e) { err.textContent = e.message; }

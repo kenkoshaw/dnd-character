@@ -28,16 +28,24 @@ function pickRole(root) {
   });
 }
 
+let kickUnsub = null;
 function watchKick(root, charId) {
+  kickUnsub?.(); // never two kick watchers
   const unsub = store.sub(`campaigns/${ctx.cid}/characters/${charId}`, ch => {
     if (ctx.role?.kind !== 'char' || ctx.role.charId !== charId) { unsub(); return; }
     if (kickReason(ch, sessionId)) { unsub(); toast('You were removed — pick a role.'); pickRole(root); }
   });
+  kickUnsub = unsub;
 }
 
 export async function releaseRole(root) {
-  if (ctx.role?.kind === 'dm') await store.release(`campaigns/${ctx.cid}/dmClaimedBy`);
-  if (ctx.role?.kind === 'char') await store.release(`campaigns/${ctx.cid}/characters/${ctx.role.charId}/claimedBy`);
+  // Clear the role BEFORE the release write: the removal echoes synchronously
+  // through the local watchKick subscription, which must see no active role
+  // (else it fires a spurious kick toast and a second stacked popup).
+  const prev = ctx.role;
+  ctx.role = null;
+  if (prev?.kind === 'dm') await store.release(`campaigns/${ctx.cid}/dmClaimedBy`);
+  if (prev?.kind === 'char') await store.release(`campaigns/${ctx.cid}/characters/${prev.charId}/claimedBy`);
   pickRole(root);
 }
 
