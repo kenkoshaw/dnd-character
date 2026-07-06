@@ -52,6 +52,23 @@ test('snapDoor snaps to nearest grid line, half-cell steps along it', () => {
   assert.deepEqual(snapDoor(90, 68, grid), { x: 85, y: 70, orientation: 'h' });
 });
 
+test('calibrate rejects invalid input with null', () => {
+  const p1 = { x: 60, y: 70 }, p2 = { x: 260, y: 72 };
+  assert.equal(calibrate(p1, p2, 0), null);       // cleared number field
+  assert.equal(calibrate(p1, p2, -4), null);      // negative
+  assert.equal(calibrate(p1, p2, NaN), null);
+  assert.equal(calibrate(p1, { x: 60.4, y: 70.2 }, 4), null); // near-identical clicks
+});
+
+test('snapDoor exact tie between lines resolves to vertical', () => {
+  // point equidistant from vertical line x=60 and horizontal line y=70
+  assert.deepEqual(snapDoor(65, 75, grid), { x: 60, y: 70, orientation: 'v' });
+});
+
+test('distanceFt returns 0 below half a cell', () => {
+  assert.equal(distanceFt({ x: 0, y: 0 }, { x: 20, y: 0 }, grid), 0); // 0.4 cells
+});
+
 test('clampToRevealed blocks moves into fogged cells', () => {
   const revealed = new Set(['1_1']);
   const last = { x: 70, y: 80 }; // inside cell 1_1

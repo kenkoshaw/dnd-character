@@ -41,8 +41,13 @@ export function distanceFt(a, b, grid) {
 
 // Two clicks on grid intersections along one row/column, n squares apart.
 // Dominant axis tolerates a slightly diagonal click pair.
+// Returns null on invalid input (n < 1, or clicks (nearly) identical) so the
+// caller can show an error instead of persisting NaN/Infinity grid state.
 export function calibrate(p1, p2, n) {
-  const cellPx = Math.max(Math.abs(p2.x - p1.x), Math.abs(p2.y - p1.y)) / n;
+  if (!Number.isFinite(n) || n < 1) return null;
+  const span = Math.max(Math.abs(p2.x - p1.x), Math.abs(p2.y - p1.y));
+  if (span < 1) return null;
+  const cellPx = span / n;
   const mod = v => ((v % cellPx) + cellPx) % cellPx;
   return { cellPx, offX: mod(p1.x), offY: mod(p1.y) };
 }
