@@ -5,8 +5,10 @@ import { createWorld } from './world.js';
 import { createMapLayer } from './render/mapLayer.js';
 import { createGridLayer } from './render/gridLayer.js';
 import { createTokenLayer } from './render/tokenLayer.js';
+import { createFogLayer } from './render/fogLayer.js';
 import { createRail } from './ui/rail.js';
 import { showDmPanel } from './ui/dmPanel.js';
+import { createFogTool } from './tools/fogTool.js';
 
 // Shared per-campaign context, extended by later tasks.
 export const ctx = {
@@ -34,6 +36,7 @@ export function enterCampaign(root, cid, meta) {
     // later tasks append: doors, monsters, fog, characters, overlay (this order)
   };
   ctx.layers.tokens = createTokenLayer(ctx.world.el);
+  ctx.layers.fog = createFogLayer(ctx.world.el, ctx.layers.tokens.charsEl);
   ctx.world.registerHandler(e => ctx.layers.tokens.dragHandler(e));
   ctx.unsubs.push(store.sub(`campaigns/${cid}/characters`, chars => {
     ctx.characters = chars || {};
@@ -52,6 +55,8 @@ export function enterCampaign(root, cid, meta) {
       ctx.mapSize = { w: map.image.w, h: map.image.h };
       ctx.startTile = map.startTile || null;
       ctx.revealed = new Set(Object.keys(map.fog || {}));
+      ctx.layers.fog.draw(ctx.revealed);
+      ctx.layers.tokens.renderMonsters?.(map.monsters); // culling refresh (Task 15)
       ctx.layers.map.setImage(map.image);
       ctx.layers.grid.draw(map.grid, map.image.w, map.image.h);
       ctx.onMapData?.(map); // hook for fog/token/door layers added later
@@ -103,6 +108,9 @@ function startUi(root, role) {
     rail.button('🚪', 'Doors', b => rail.setTool('door', b)).dataset.tool = 'door';         // handler Task 14
     rail.button('👾', 'Monsters', () => {});                            // wired Task 15
     rail.button('⚙', 'Settings', () => showDmPanel(rail));
+    const fogTool = createFogTool(rail);
+    ctx.world.registerHandler(e => fogTool.pointerHandler(e));
+    rail.onToolChange(t => { if (t === 'fog') fogTool.showPopover(); });
   }
   const rulerBtn = rail.button('📏', 'Ruler on/off', b => {             // used from Task 13
     const on = localStorage.getItem('vtt_ruler') !== 'off';
