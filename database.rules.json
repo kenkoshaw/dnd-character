@@ -1,0 +1,12 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "campaigns": {
+      "$cid": {
+        ".read": true,
+        ".write": "data.exists() || newData.child('meta/pw').val() === 'CHANGE_ME_SITE_PASSWORD'"
+      }
+    }
+  }
+}
