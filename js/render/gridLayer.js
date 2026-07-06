@@ -8,7 +8,7 @@ export function createGridLayer(worldEl) {
     canvas.width = mapW; canvas.height = mapH;
     const g = canvas.getContext('2d');
     g.clearRect(0, 0, mapW, mapH);
-    if (!grid || grid.visible === false) return;
+    if (!grid || grid.visible === false || !(grid.cellPx > 0)) return;
     g.strokeStyle = grid.color || '#000000';
     g.globalAlpha = grid.opacity ?? 0.4;
     g.lineWidth = 1;

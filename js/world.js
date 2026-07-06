@@ -8,10 +8,12 @@ export function createWorld(viewport) {
   viewport.appendChild(el);
   const view = { panX: 40, panY: 40, zoom: 0.4 };
   const handlers = [];
+  let panPointer = null;
   const apply = () =>
     el.style.transform = `translate(${view.panX}px, ${view.panY}px) scale(${view.zoom})`;
   apply();
 
+  // passive:false is safe: the app shell is overflow:hidden — nothing scrolls.
   viewport.addEventListener('wheel', e => {
     e.preventDefault();
     const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
@@ -30,11 +32,26 @@ export function createWorld(viewport) {
   });
 
   function startPan(e) {
+    if (panPointer !== null) return; // one pan at a time
+    panPointer = e.pointerId;
     const sx = e.clientX - view.panX, sy = e.clientY - view.panY;
-    const move = ev => { view.panX = ev.clientX - sx; view.panY = ev.clientY - sy; apply(); };
-    const up = () => { removeEventListener('pointermove', move); removeEventListener('pointerup', up); };
-    addEventListener('pointermove', move);
-    addEventListener('pointerup', up);
+    viewport.setPointerCapture(e.pointerId); // keeps events coming even off-window
+    const move = ev => {
+      if (ev.pointerId !== panPointer) return;
+      view.panX = ev.clientX - sx; view.panY = ev.clientY - sy; apply();
+    };
+    const stop = ev => {
+      if (ev.pointerId !== panPointer) return;
+      panPointer = null;
+      viewport.removeEventListener('pointermove', move);
+      viewport.removeEventListener('pointerup', stop);
+      viewport.removeEventListener('pointercancel', stop);
+      viewport.removeEventListener('lostpointercapture', stop);
+    };
+    viewport.addEventListener('pointermove', move);
+    viewport.addEventListener('pointerup', stop);
+    viewport.addEventListener('pointercancel', stop);
+    viewport.addEventListener('lostpointercapture', stop);
   }
 
   return {

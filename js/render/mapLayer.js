@@ -10,6 +10,9 @@ export function createMapLayer(worldEl) {
       worldEl.style.width = `${w}px`;
       worldEl.style.height = `${h}px`;
     },
-    clear() { img.removeAttribute('src'); },
+    clear() {
+      img.removeAttribute('src');
+      worldEl.style.width = worldEl.style.height = '0px';
+    },
   };
 }

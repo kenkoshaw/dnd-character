@@ -13,6 +13,11 @@ export const ctx = {
 };
 
 export function enterCampaign(root, cid, meta) {
+  // Tear down any previous campaign's subscriptions (landing → A → landing → B
+  // in one tab): stale subs would keep writing into ctx and detached layers.
+  // Every store.sub this module or later layers create must register here.
+  ctx.unsubs?.forEach(u => u());
+  ctx.unsubs = [];
   ctx.cid = cid;
   document.title = meta.name;
   const viewport = document.createElement('div');
@@ -27,7 +32,8 @@ export function enterCampaign(root, cid, meta) {
   };
 
   let unsubMap = null;
-  store.sub(`campaigns/${cid}/activeMapId`, mapId => {
+  ctx.unsubs.push(() => unsubMap?.());
+  ctx.unsubs.push(store.sub(`campaigns/${cid}/activeMapId`, mapId => {
     ctx.activeMapId = mapId;
     unsubMap?.();
     if (!mapId) { ctx.layers.map.clear(); return; }
@@ -41,7 +47,7 @@ export function enterCampaign(root, cid, meta) {
       ctx.layers.grid.draw(map.grid, map.image.w, map.image.h);
       ctx.onMapData?.(map); // hook for fog/token/door layers added later
     });
-  });
+  }));
 
   pickRole(root);
 }
