@@ -4,6 +4,7 @@ import { showRolePopup } from './ui/rolePopup.js';
 import { createWorld } from './world.js';
 import { createMapLayer } from './render/mapLayer.js';
 import { createGridLayer } from './render/gridLayer.js';
+import { createTokenLayer } from './render/tokenLayer.js';
 import { createRail } from './ui/rail.js';
 import { showDmPanel } from './ui/dmPanel.js';
 
@@ -32,6 +33,12 @@ export function enterCampaign(root, cid, meta) {
     grid: createGridLayer(ctx.world.el),
     // later tasks append: doors, monsters, fog, characters, overlay (this order)
   };
+  ctx.layers.tokens = createTokenLayer(ctx.world.el);
+  ctx.world.registerHandler(e => ctx.layers.tokens.dragHandler(e));
+  ctx.unsubs.push(store.sub(`campaigns/${cid}/characters`, chars => {
+    ctx.characters = chars || {};
+    ctx.layers.tokens.renderCharacters(ctx.characters);
+  }));
 
   let unsubMap = null;
   ctx.unsubs.push(() => unsubMap?.());
@@ -48,6 +55,7 @@ export function enterCampaign(root, cid, meta) {
       ctx.layers.map.setImage(map.image);
       ctx.layers.grid.draw(map.grid, map.image.w, map.image.h);
       ctx.onMapData?.(map); // hook for fog/token/door layers added later
+      ctx.layers.tokens.renderCharacters(ctx.characters);
     });
   }));
 
