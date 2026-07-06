@@ -15,7 +15,8 @@ Voice, dice, and rules stay outside the app (Discord / at the table).
 | Topic | Decision |
 |---|---|
 | Hosting / sync | Static site on GitHub Pages + Firebase Realtime Database (free tier) |
-| Accounts | None. Unguessable player link + secret DM link |
+| Accounts | None. One shared link per campaign; DM is a claimable role like characters |
+| Site password | Shared password gates the site; campaign creation enforced via Firebase rule |
 | Tech stack | Vanilla JS ES modules, no build step, Firebase SDK via CDN |
 | Fog model | Grid-cell based reveal; players see pure black under fog |
 | Grid calibration | Two-click intersection calibrate + fine-tune sliders |
@@ -31,25 +32,45 @@ Voice, dice, and rules stay outside the app (Discord / at the table).
 - **Firebase Realtime Database** holds all campaign state. Every interaction is
   a small field write; Firebase fans it out to all subscribed clients (~50 ms).
 - **Routing** is hash-based (no server):
-  - `#/` — landing: create campaign (name it → get both links)
-  - `#/c/<campaignId>` — player link
-  - `#/c/<campaignId>/dm/<dmSecret>` — DM link
+  - `#/` — landing: create campaign (name it → get the campaign link)
+  - `#/c/<campaignId>` — the one shared link for everyone, DM included
+- **Roles:** DM is a claimable slot in the same role-selection popup as
+  characters — first to select DM gets it (transaction, like character
+  claims). One session = one role (DM or a single character). The same
+  person can open two tabs to hold two roles; no checks against that.
 - **Presence:** each tab gets a session id; `onDisconnect` handlers release
-  character claims automatically when a tab closes or drops.
+  character and DM claims automatically when a tab closes or drops.
+- **Campaign lifetime:** revisiting the same URL later returns to the same
+  campaign with all state intact. The DM settings panel has a
+  **delete campaign** button (typed confirmation) that removes the campaign
+  subtree from Firebase entirely.
+
+### Site password
+
+To keep strangers from filling the Firebase free tier, the site asks for a
+shared password on first visit (cached in localStorage). Campaign **creation**
+is additionally enforced server-side: a Firebase security rule only accepts a
+new `campaigns/<cid>` write when it carries the correct password value
+(rules are not readable by clients, so the password does not leak from
+rules). Immediately after creation the client deletes the `meta/pw` field —
+otherwise any player with the link could read the site password from
+campaign data. Writes to an existing campaign are capability-based — knowing
+the random `campaignId` is the credential.
 
 ### Security stance (documented, accepted)
 
-`campaignId` and `dmSecret` are long random strings — capability URLs.
-DM-only actions are enforced client-side only. A player using dev tools could
-read the fogged map or move monsters. Acceptable for trusted friend groups;
-stated plainly in the README. No PII beyond a chosen character name and
-uploaded images.
+`campaignId` is a long random string — a capability URL. Role and DM-only
+action enforcement is client-side only. A player using dev tools could read
+the fogged map or move monsters. Acceptable for trusted friend groups; stated
+plainly in the README. No PII beyond a chosen character name and uploaded
+images.
 
 ## 4. Data model (Firebase paths)
 
 ```
 campaigns/<cid>/
-  meta: {name, createdAt, dmSecret}
+  meta: {name, createdAt, pw}      # pw checked by creation rule, then deleted
+  dmClaimedBy: <sessionId> | null  # DM slot; same claim semantics as characters
   activeMapId: <mapId>
   characters/<charId>:
     name, imageB64, speed          # all editable during campaign
@@ -87,10 +108,11 @@ Notes:
 
 ## 5. Roles and flows
 
-### Create campaign (anyone)
-Landing page → enter campaign name → app generates `campaignId` + `dmSecret`,
-writes `meta`, shows the two links with copy buttons. DM link also cached in
-localStorage and always recoverable from the DM settings panel.
+### Create campaign (anyone with the site password)
+Landing page → site password prompt (once, cached) → enter campaign name →
+app generates `campaignId`, writes `meta` (creation rule validates the
+password), shows the single campaign link with a copy button. Creator shares
+that link with the whole group and claims the DM slot themselves.
 
 ### DM map setup
 Upload PNG → calibration screen:
@@ -103,13 +125,18 @@ Upload PNG → calibration screen:
 4. Click a cell to set the start tile.
 5. Activate map. Switching the active map moves all players to it.
 
-### Player join
-Open player link → popup lists the campaign's characters with claimed/free
-badges → claim a free one, **or** create new (name + image PNG + walk speed).
-Claiming is a Firebase transaction — two people cannot hold the same
-character; losing a race shows "already claimed". Disconnect auto-releases.
-Manual "release character" button exists. Name, image, and speed are editable
+### Join / role selection
+Open the campaign link → role-selection popup lists the **DM slot** plus the
+campaign's characters, each with a claimed/free badge → claim the DM slot, or
+claim a free character, or create a new character (name + image PNG + walk
+speed). Claiming is a Firebase transaction — two people cannot hold the same
+role; losing a race shows "already claimed". Disconnect auto-releases claims.
+Manual "release role" button exists. Name, image, and speed are editable
 mid-campaign from the player's own character panel.
+
+While the popup is open, the background renders the **player view** — the
+map with DM-set fog applied as opaque black — never the unfogged map, even
+for the person about to claim DM.
 
 ### DM player management
 DM sees the character roster and can:
@@ -150,7 +177,10 @@ No mode switch: pointer-down on a token starts a token drag, anywhere else
 starts a pan.
 
 ### Token movement
-Players drag only their claimed character; DM drags any token. While
+Players drag only their claimed character, and only within **revealed**
+cells — during a player drag the token is constrained to positions whose
+center cell is revealed; releasing over fog snaps the token back to the last
+valid position. The DM drags any token anywhere, fog included. While
 dragging, if the user's **ruler toggle** is on: a line from the drag origin
 plus a distance label (straight-line px → ft via grid scale, rounded to the
 nearest 5 ft); the label turns red beyond the character's walk speed
@@ -219,7 +249,9 @@ Click a thumbnail → token spawns at the center of the DM's current view
 | Image source > 8 MB | Rejected with clear message |
 | Image 2–8 MB | Auto-downscaled/re-encoded client-side |
 | Bad/missing campaign id | "Campaign not found" page with create link |
-| DM link lost | Recoverable from DM settings panel; cached in localStorage |
+| Wrong site password | Creation write rejected by Firebase rule → clear error, re-prompt |
+| DM slot already claimed | Shown as taken in role popup, same as characters |
+| Player drops token on fog | Token snaps back to last valid revealed position |
 
 ## 10. Out of scope (v1)
 
