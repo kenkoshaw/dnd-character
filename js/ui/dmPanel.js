@@ -5,6 +5,7 @@ import { openCalibration } from '../tools/calibrate.js';
 import { esc } from './esc.js';
 
 export function showDmPanel(rail) {
+  rail.closeExclusive();
   rail.showPopover(async p => {
     const maps = (await store.readOnce(`campaigns/${ctx.cid}/maps`)) || {};
     p.innerHTML = `<h3>Maps</h3><div id="mapList"></div>
@@ -23,7 +24,7 @@ export function showDmPanel(rail) {
     }
     p.querySelector('#mapFile').onchange = async e => {
       try {
-        const file = e.target.files[0];
+        const file = e.target.files[0]; e.target.value = '';
         const image = await processMapImage(file);
         const mapId = crypto.randomUUID().replaceAll('-', '');
         await store.write(`campaigns/${ctx.cid}/maps/${mapId}`, {

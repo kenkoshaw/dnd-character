@@ -87,19 +87,21 @@ export async function releaseRole(root) {
 }
 
 function startUi(root, role) {
+  ctx.rail?.closeExclusive?.(); // calibration must not outlive the rail that owns it
   const rail = createRail(role);
   ctx.rail = rail;
   if (role.kind === 'dm') {
-    rail.button('☁', 'Fog of war', b => rail.setTool('fog', b));      // handler Task 12
-    rail.button('🚪', 'Doors', b => rail.setTool('door', b));          // handler Task 14
+    rail.button('☁', 'Fog of war', b => rail.setTool('fog', b)).dataset.tool = 'fog';      // handler Task 12
+    rail.button('🚪', 'Doors', b => rail.setTool('door', b)).dataset.tool = 'door';         // handler Task 14
     rail.button('👾', 'Monsters', () => {});                            // wired Task 15
     rail.button('⚙', 'Settings', () => showDmPanel(rail));
   }
-  rail.button('📏', 'Ruler on/off', b => {                              // used from Task 13
+  const rulerBtn = rail.button('📏', 'Ruler on/off', b => {             // used from Task 13
     const on = localStorage.getItem('vtt_ruler') !== 'off';
     localStorage.setItem('vtt_ruler', on ? 'off' : 'on');
     b.classList.toggle('active', !on);
   });
+  rulerBtn.classList.toggle('active', localStorage.getItem('vtt_ruler') !== 'off');
   rail.button('⏏', 'Release role', () => releaseRole(root));
 }
 

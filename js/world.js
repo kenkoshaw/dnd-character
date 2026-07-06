@@ -56,7 +56,13 @@ export function createWorld(viewport) {
 
   return {
     el, view,
-    registerHandler: fn => handlers.unshift(fn), // later registrations take priority
+    registerHandler: fn => {
+      handlers.unshift(fn); // later registrations take priority
+      return () => {
+        const i = handlers.indexOf(fn);
+        if (i >= 0) handlers.splice(i, 1);
+      };
+    },
     toWorld: e => screenToWorld(e.clientX, e.clientY, view),
   };
 }

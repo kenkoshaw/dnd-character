@@ -30,7 +30,9 @@ export function openCalibration(rail, mapId, map) {
     }
     return false;
   };
-  ctx.world.registerHandler(clickHandler);
+  const unregister = ctx.world.registerHandler(clickHandler);
+  const cancel = () => { active = false; unregister(); };
+  rail.setExclusive(cancel); // closes any previously-open calibration too
 
   function render() {
     rail.showPopover(p => {
@@ -93,7 +95,8 @@ export function openCalibration(rail, mapId, map) {
 
   async function save() {
     await store.patch(`campaigns/${ctx.cid}/maps/${mapId}`, { grid, startTile });
-    active = false;
+    rail.clearExclusive(cancel);
+    cancel();
     rail.closePopover();
   }
 
