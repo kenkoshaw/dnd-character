@@ -189,9 +189,10 @@ function startUi(root, role) {
     toolCleanups.push(monsterTool.bindTokenMenus(document.querySelector('#viewport')));
     rail.button('👾', 'Monsters', () => monsterTool.showPopover());
     rail.button('⚙', 'Settings', () => showDmPanel(rail));
-    const fogTool = createFogTool(rail);
+    const fogTool = createFogTool(rail, document.querySelector('#viewport'));
     toolCleanups.push(ctx.world.registerHandler(e => fogTool.pointerHandler(e)));
-    rail.onToolChange(t => { if (t === 'fog') fogTool.showPopover(); });
+    toolCleanups.push(fogTool.dispose);
+    rail.onToolChange(t => { if (t === 'fog') fogTool.showPopover(); else fogTool.hidePreview(); });
     const doorTool = createDoorTool(rail, document.querySelector('#viewport'));
     toolCleanups.push(ctx.world.registerHandler(e => doorTool.pointerHandler(e)));
     toolCleanups.push(doorTool.dispose);

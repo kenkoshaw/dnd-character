@@ -1,11 +1,11 @@
-import { cellOf, cellKey } from '../geometry.js';
+import { cellOf, cellKey, cellRect } from '../geometry.js';
 import { strokeMode, strokeUpdates, allCellKeys } from '../fogLogic.js';
 import * as store from '../store.js';
 import { ctx } from '../campaign.js';
 
 // DM-only. Click toggles a cell; drag paints. The starting cell fixes the
 // stroke mode. Other clients see the result only on commit (pointer release).
-export function createFogTool(rail) {
+export function createFogTool(rail, viewport) {
   let brush = Number(localStorage.getItem('vtt_fog_brush')) || 1; // side, in cells
 
   // All cells of a brush×brush square centered (biased up-left) on c.
@@ -17,6 +17,26 @@ export function createFogTool(rail) {
         keys.push(cellKey(c.col + dc, c.row + dr));
     return keys;
   }
+
+  // Translucent yellow footprint following the cursor while the tool is active.
+  const preview = document.createElement('div');
+  preview.className = 'fog-brush';
+  preview.style.display = 'none';
+  ctx.world.el.appendChild(preview); // world coords: scales with zoom, snaps to cells
+  const hidePreview = () => { preview.style.display = 'none'; };
+  const onMove = e => {
+    if (rail !== ctx.rail || rail.getTool() !== 'fog' || ctx.role?.kind !== 'dm' || !ctx.grid) {
+      hidePreview();
+      return;
+    }
+    const w = ctx.world.toWorld(e);
+    const c = cellOf(w.x, w.y, ctx.grid);
+    const off = Math.floor((brush - 1) / 2);
+    const r = cellRect(c.col - off, c.row - off, ctx.grid);
+    const size = ctx.grid.cellPx * brush;
+    preview.style.cssText = `display:block;left:${r.x}px;top:${r.y}px;width:${size}px;height:${size}px`;
+  };
+  viewport.addEventListener('pointermove', onMove);
 
   function pointerHandler(e) {
     // rail !== ctx.rail: stale closure from a released role must self-disable
@@ -83,5 +103,8 @@ export function createFogTool(rail) {
     });
   }
 
-  return { pointerHandler, showPopover };
+  return {
+    pointerHandler, showPopover, hidePreview,
+    dispose: () => { viewport.removeEventListener('pointermove', onMove); preview.remove(); },
+  };
 }
