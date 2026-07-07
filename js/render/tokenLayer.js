@@ -46,11 +46,12 @@ export function createTokenLayer(worldEl) {
     }
   }
 
-  // First arrival on a map: my own claimed character spawns at the start tile.
+  // First arrival on a map: my own character spawns at the start tile.
   function maybeSpawn(id, ch) {
-    // Deliberately redundant: DM and the owning player may both spawn-write;
-    // the value is deterministic (start-tile center) so the writes converge.
-    const mine = ctx.role?.kind === 'char' && ctx.role.charId === id && ch.claimedBy === sessionId;
+    // Deliberately redundant: the DM and the character's player may both
+    // spawn-write; the value is deterministic (start-tile center) so the
+    // writes converge.
+    const mine = ctx.role?.kind === 'char' && ctx.role.charId === id;
     const dm = ctx.role?.kind === 'dm';
     if (!(mine || dm) || !ctx.startTile || !ctx.grid) return;
     const r = cellRect(ctx.startTile.col, ctx.startTile.row, ctx.grid);

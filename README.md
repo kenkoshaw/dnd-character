@@ -1,7 +1,7 @@
 # D&D Campaign Map
 
-Free shared battle map for remote D&D: one link per campaign, claimable DM and
-character roles, 5 ft grid with calibration, fog of war, doors, monsters with
+Free shared battle map for remote D&D: one link per campaign, freely chosen DM
+and character roles, 5 ft grid with calibration, fog of war, doors, monsters with
 HP tracking, live token movement with distance rulers.
 
 ## Setup (once)
@@ -13,8 +13,11 @@ HP tracking, live token movement with distance rulers.
 
 ## How it works
 
-- Everyone uses the same campaign link. First to claim DM is DM; everyone else
-  claims or creates a character (name, token image, walk speed).
+- Creating a campaign walks the DM through setup: upload a map, calibrate its
+  grid, paint fog of war, then share the invite link it shows at the end.
+- Everyone uses that same link. Pick DM or a character freely — roles only
+  decide what your browser can do, nothing is locked. (Two people picking the
+  same character just means two hands on one token.)
 - DM: upload map → place two points on grid intersections (pan/zoom freely,
   a third click adjusts) → OK → fine-tune → set start tile. New maps start
   fully revealed with the grid hidden — paint fog ON and toggle the grid as
@@ -30,10 +33,8 @@ HP tracking, live token movement with distance rulers.
   link and dev-tools knowledge could peek under the fog. Play with people you
   trust; don't reuse the site password anywhere else. The password is only
   enforced server-side for campaign creation.
-- **Stuck claim:** if a role shows "taken" but nobody holds it (rare network
-  race), open the Firebase console → Realtime Database → delete that
-  character's `claimedBy` key (or `dmClaimedBy`). Claims normally auto-release
-  when a tab closes.
+- **Shared roles:** roles aren't locked — coordinate over voice so two people
+  don't drive the same token. Worst case, both move it.
 - **Token under fog:** if the DM re-fogs the square a character stands on,
   that player can't move until the DM reveals it or drags them out — intended.
 - **Cancelled drags** (alt-tab mid-drag) snap the token to its last streamed

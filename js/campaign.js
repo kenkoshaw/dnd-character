@@ -1,6 +1,7 @@
 import * as store from './store.js';
-import { sessionId, kickReason } from './session.js';
+import { kickReason } from './session.js';
 import { showRolePopup } from './ui/rolePopup.js';
+import { runSetup } from './ui/setupWizard.js';
 import { createWorld } from './world.js';
 import { createMapLayer } from './render/mapLayer.js';
 import { createGridLayer } from './render/gridLayer.js';
@@ -112,7 +113,15 @@ export function enterCampaign(root, cid, meta) {
     });
   }));
 
-  pickRole(root);
+  if (!meta.setupDone) {
+    // Freshly created campaign: the creator walks the guided setup as DM
+    // (upload → calibrate → fog → share link) before roles matter.
+    ctx.role = { kind: 'dm' };
+    startUi(root, ctx.role);
+    runSetup(ctx.rail);
+  } else {
+    pickRole(root);
+  }
 }
 
 function pickRole(root) {
@@ -120,23 +129,24 @@ function pickRole(root) {
   showRolePopup(root, ctx.cid, role => {
     ctx.role = role;
     if (role.kind === 'char') watchKick(root, role.charId);
-    startUi(root, role); // grows in later tasks
+    startUi(root, role);
   });
 }
 
 let kickUnsub = null;
 let toolCleanups = [];
+// A player whose character is deleted or hidden goes back to the role popup.
 function watchKick(root, charId) {
   kickUnsub?.(); // never two kick watchers
   const unsub = store.sub(`campaigns/${ctx.cid}/characters/${charId}`, ch => {
     if (ctx.role?.kind !== 'char' || ctx.role.charId !== charId) { unsub(); return; }
-    if (kickReason(ch, sessionId)) {
+    if (kickReason(ch)) {
       unsub();
       // If the whole campaign is gone (DM deleted it), go home — a role popup
-      // on a dead campaign only offers zombie slots the rules reject anyway.
+      // on a dead campaign only offers zombie slots.
       store.readOnce(`campaigns/${ctx.cid}/meta`).then(meta => {
         if (!meta) { location.hash = ''; return; }
-        toast('You were removed — pick a role.');
+        toast('Your character is gone — pick a role.');
         pickRole(root);
       });
     }
@@ -145,15 +155,10 @@ function watchKick(root, charId) {
   ctx.unsubs?.push(unsub);
 }
 
-export async function releaseRole(root) {
-  // Clear the role BEFORE the release write: the removal echoes synchronously
-  // through the local watchKick subscription, which must see no active role
-  // (else it fires a spurious kick toast and a second stacked popup).
-  const prev = ctx.role;
-  if (!prev) return; // release already in flight or no role held
+// Roles are free selection — switching is purely local, nothing to release.
+export function switchRole(root) {
+  if (!ctx.role) return; // popup already open
   ctx.role = null;
-  if (prev?.kind === 'dm') await store.release(`campaigns/${ctx.cid}/dmClaimedBy`);
-  if (prev?.kind === 'char') await store.release(`campaigns/${ctx.cid}/characters/${prev.charId}/claimedBy`);
   pickRole(root);
 }
 
@@ -189,7 +194,7 @@ function startUi(root, role) {
     ctx.layers.overlay?.drawRulers([]); // clear immediately; next event redraws if on
   });
   rulerBtn.classList.toggle('active', localStorage.getItem('vtt_ruler') !== 'off');
-  rail.button('⏏', 'Release role', () => releaseRole(root));
+  rail.button('⏏', 'Switch role', () => switchRole(root));
 }
 
 export function toast(msg) {

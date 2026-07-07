@@ -1,7 +1,12 @@
 # D&D Remote Campaign Map (VTT) — Design Spec
 
 Date: 2026-07-06
-Status: Approved pending user review
+Status: Implemented; amended 2026-07-07 after playtest — role claims/locks
+REMOVED (roles are free selection; they only scope available actions), and new
+campaigns run a guided first-time setup (upload → calibrate → fog → share
+link, creator assumed DM, `meta.setupDone` flag). Claim/presence machinery
+(`claimedBy`, `dmClaimedBy`, transactions, kick-on-lost-claim) is gone;
+kick-on-delete/hide remains.
 
 ## 1. Purpose
 

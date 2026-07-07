@@ -4,9 +4,10 @@ import * as store from '../store.js';
 import { ctx } from '../campaign.js';
 
 // Full calibration flow for one map: place two points (pan/zoom stays free) →
-// OK → squares-apart → fine-tune → grid style → click start tile → save.
+// OK → tile counts → fine-tune → grid style → click start tile → save.
 // Runs as a popover + a click-vs-drag world handler.
-export function openCalibration(rail, mapId, map) {
+// onDone (optional) fires after a successful save — the setup wizard chains on it.
+export function openCalibration(rail, mapId, map, onDone) {
   let clicks = [];
   let grid = { cellPx: 50, offX: 0, offY: 0, color: '#000000', opacity: 0.4, visible: false, ...(map.grid || {}) };
   let startTile = map.startTile || null;
@@ -164,6 +165,7 @@ export function openCalibration(rail, mapId, map) {
     rail.clearExclusive(cancel);
     cancel();
     rail.closePopover();
+    onDone?.();
   }
 
   render();

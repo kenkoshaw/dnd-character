@@ -1,12 +1,12 @@
 # Pre-release manual checklist (two browser windows: DM + player)
 
 - [ ] Create campaign (wrong pw rejected, right pw works, no `pw` field left in DB)
-- [ ] Claim DM / claim character / create character — races show "already claimed"
-- [ ] Close player tab → claim frees within ~60 s
+- [ ] New campaign runs guided setup: upload → calibrate → fog → share link (copy works)
+- [ ] Pick DM / pick character / create character — same role selectable from two tabs
 - [ ] Role popup background = fogged player view, never the bare map
 - [ ] Map upload → calibrate (two clicks) → grid matches the map's printed grid
 - [ ] Transparent-PNG map: transparent regions render white, not black
-- [ ] Start tile: claiming character spawns there; map switch → players follow,
+- [ ] Start tile: newly picked character spawns there; map switch → players follow,
       positions restored per map
 - [ ] Grid visible toggle + color/opacity sync to the player window
 - [ ] Player drag: live in DM window, blocked by fog, snaps back on fog drop

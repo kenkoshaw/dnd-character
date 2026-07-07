@@ -51,7 +51,7 @@ export function showDmPanel(rail) {
         <button data-a="del">delete</button>`;
       row.querySelector('[data-a=hide]').onclick = () =>
         store.patch(`campaigns/${ctx.cid}/characters/${id}`,
-          ch.hidden ? { hidden: null } : { hidden: true, claimedBy: null });
+          ch.hidden ? { hidden: null } : { hidden: true });
       row.querySelector('[data-a=del]').onclick = () => {
         if (confirm(`Permanently delete ${ch.name}?`))
           store.del(`campaigns/${ctx.cid}/characters/${id}`);
