@@ -31,7 +31,7 @@ export function createTokenLayer(worldEl) {
     const keep = draggingId ? charsEl.querySelector(`[data-char-id="${draggingId}"]`) : null;
     for (const child of [...charsEl.children]) if (child !== keep) child.remove();
     if (!ctx.grid) return;
-    const size = ctx.grid.cellPx / 2; // ¼ of a cell's area = half its side
+    const size = ctx.grid.cellPx / Math.sqrt(3); // ⅓ of a cell's area ≈ 0.58 of its side
     for (const [id, ch] of Object.entries(chars || {})) {
       if (ch.hidden || id === draggingId) continue;
       const pos = ch.positions?.[ctx.activeMapId];
