@@ -6,6 +6,7 @@ import { createMapLayer } from './render/mapLayer.js';
 import { createGridLayer } from './render/gridLayer.js';
 import { createTokenLayer } from './render/tokenLayer.js';
 import { createFogLayer } from './render/fogLayer.js';
+import { createOverlayLayer } from './render/overlayLayer.js';
 import { createRail } from './ui/rail.js';
 import { showDmPanel } from './ui/dmPanel.js';
 import { createFogTool } from './tools/fogTool.js';
@@ -37,11 +38,32 @@ export function enterCampaign(root, cid, meta) {
   };
   ctx.layers.tokens = createTokenLayer(ctx.world.el);
   ctx.layers.fog = createFogLayer(ctx.world.el, ctx.layers.tokens.charsEl);
+  ctx.layers.overlay = createOverlayLayer(ctx.world.el);
   ctx.world.registerHandler(e => ctx.layers.tokens.dragHandler(e));
   ctx.unsubs.push(store.sub(`campaigns/${cid}/characters`, chars => {
     ctx.characters = chars || {};
     ctx.layers.tokens.renderCharacters(ctx.characters);
   }));
+
+  // Drag rulers: my own in-flight drag (via the tokenLayer hook) merged with
+  // other sessions' streamed drags; each viewer's ruler toggle gates rendering.
+  let remoteDrags = {};
+  let myDrag = null;
+  const redrawRulers = () => {
+    const rulers = Object.entries(remoteDrags)
+      .filter(([sid]) => sid !== sessionId)
+      .map(([, d]) => ({
+        startX: d.startX, startY: d.startY, x: d.x, y: d.y,
+        speed: d.charId ? ctx.characters?.[d.charId]?.speed ?? null : null,
+      }));
+    if (myDrag?.active) rulers.push({
+      startX: myDrag.start.x, startY: myDrag.start.y,
+      x: myDrag.current.x, y: myDrag.current.y, speed: myDrag.speed ?? null,
+    });
+    ctx.layers.overlay.drawRulers(rulers);
+  };
+  ctx.unsubs.push(store.sub(`campaigns/${cid}/drags`, v => { remoteDrags = v || {}; redrawRulers(); }));
+  ctx.onDragUpdate = d => { myDrag = d; redrawRulers(); };
 
   let unsubMap = null;
   ctx.unsubs.push(() => unsubMap?.());
