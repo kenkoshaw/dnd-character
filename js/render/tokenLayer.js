@@ -60,6 +60,41 @@ export function createTokenLayer(worldEl) {
     );
   }
 
+  // ---- monsters ----
+  let libCache = {};
+  function renderMonsters(monsters, library) {
+    if (library) libCache = library;
+    // same dragging guard as renderCharacters: don't destroy the element mid-drag
+    const keep = draggingId ? monstersEl.querySelector(`[data-monster-id="${draggingId}"]`) : null;
+    monstersEl.innerHTML = '';
+    if (keep) monstersEl.appendChild(keep);
+    if (!ctx.grid || !(ctx.grid.cellPx > 0)) return;
+    const isDm = ctx.role?.kind === 'dm';
+    for (const [id, m] of Object.entries(monsters || {})) {
+      if (id === draggingId) continue;
+      const lib = libCache[m.libRef];
+      if (!lib) continue;
+      if (!isDm) { // players: culled when center cell is fogged
+        const c = cellOf(m.x, m.y, ctx.grid);
+        if (!ctx.revealed.has(cellKey(c.col, c.row))) continue;
+      }
+      const side = ctx.grid.cellPx * m.size; // size: 0.5 | 1 | 2 (cells)
+      const el = document.createElement('div');
+      el.className = 'token monster';
+      el.dataset.monsterId = id;
+      el.style.cssText = `width:${side}px;height:${side}px;left:${m.x - side / 2}px;top:${m.y - side / 2}px`;
+      el.innerHTML = `<img src="${lib.imageB64}" draggable="false">`;
+      el.addEventListener('mouseenter', e => {
+        if (isDm || m.hpVisible) {
+          const pct = Math.max(0, Math.min(100, (m.hp.cur / m.hp.max) * 100));
+          showTip(e, `${esc(lib.label)} · ${m.hp.cur}/${m.hp.max}<div class="hpbar"><div style="width:${pct}%"></div></div>`);
+        } else showTip(e, esc(lib.label));
+      });
+      el.addEventListener('mouseleave', hideTip);
+      monstersEl.appendChild(el);
+    }
+  }
+
   function showTip(e, html) {
     tooltip.innerHTML = html;
     tooltip.style.display = 'block';
@@ -141,5 +176,5 @@ export function createTokenLayer(worldEl) {
     });
   }
 
-  return { renderCharacters, dragHandler, monstersEl, charsEl, showTip, hideTip };
+  return { renderCharacters, renderMonsters, dragHandler, monstersEl, charsEl, showTip, hideTip };
 }

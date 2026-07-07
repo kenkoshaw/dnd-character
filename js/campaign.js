@@ -12,6 +12,7 @@ import { createRail } from './ui/rail.js';
 import { showDmPanel } from './ui/dmPanel.js';
 import { createFogTool } from './tools/fogTool.js';
 import { createDoorTool } from './tools/doorTool.js';
+import { createMonsterTool } from './tools/monsterTool.js';
 
 // Shared per-campaign context, extended by later tasks.
 export const ctx = {
@@ -68,6 +69,12 @@ export function enterCampaign(root, cid, meta) {
   ctx.unsubs.push(store.sub(`campaigns/${cid}/drags`, v => { remoteDrags = v || {}; redrawRulers(); }));
   ctx.onDragUpdate = d => { myDrag = d; redrawRulers(); };
 
+  ctx.monsterLib = {}; ctx.monsterData = {};
+  ctx.unsubs.push(store.sub(`campaigns/${cid}/monsterLibrary`, v => {
+    ctx.monsterLib = v || {};
+    ctx.layers.tokens.renderMonsters(ctx.monsterData, ctx.monsterLib);
+  }));
+
   let unsubMap = null;
   ctx.unsubs.push(() => unsubMap?.());
   ctx.unsubs.push(store.sub(`campaigns/${cid}/activeMapId`, mapId => {
@@ -83,7 +90,8 @@ export function enterCampaign(root, cid, meta) {
       ctx.revealed = new Set(Object.keys(map.fog || {}));
       ctx.layers.fog.draw(ctx.revealed, ctx.fogPreview || null);
       ctx.layers.doors.render(map.doors);
-      ctx.layers.tokens.renderMonsters?.(map.monsters); // culling refresh (Task 15)
+      ctx.monsterData = map.monsters || {};
+      ctx.layers.tokens.renderMonsters(ctx.monsterData, ctx.monsterLib);
       ctx.layers.map.setImage(map.image);
       ctx.layers.grid.draw(map.grid, map.image.w, map.image.h);
       ctx.onMapData?.(map); // hook for fog/token/door layers added later
@@ -133,7 +141,9 @@ function startUi(root, role) {
   if (role.kind === 'dm') {
     rail.button('☁', 'Fog of war', b => rail.setTool('fog', b)).dataset.tool = 'fog';      // handler Task 12
     rail.button('🚪', 'Doors', b => rail.setTool('door', b)).dataset.tool = 'door';         // handler Task 14
-    rail.button('👾', 'Monsters', () => {});                            // wired Task 15
+    const monsterTool = createMonsterTool(rail, () => ctx.monsterLib);
+    monsterTool.bindTokenMenus(document.querySelector('#viewport'));
+    rail.button('👾', 'Monsters', () => monsterTool.showPopover());
     rail.button('⚙', 'Settings', () => showDmPanel(rail));
     const fogTool = createFogTool(rail);
     ctx.world.registerHandler(e => fogTool.pointerHandler(e));
