@@ -37,5 +37,39 @@ export function showDmPanel(rail) {
         openCalibration(rail, mapId, m);
       } catch (err) { toast(err.message); }
     };
+
+    // --- roster ---
+    const chars = (await store.readOnce(`campaigns/${ctx.cid}/characters`)) || {};
+    const roster = document.createElement('div');
+    roster.innerHTML = '<h3 style="margin-top:14px">Characters</h3>';
+    for (const [id, ch] of Object.entries(chars)) {
+      const row = document.createElement('div');
+      row.innerHTML = `<span>${esc(ch.name)}${ch.hidden ? ' (hidden)' : ''}</span>
+        <button data-a="hide">${ch.hidden ? 'unhide' : 'hide'}</button>
+        <button data-a="del">delete</button>`;
+      row.querySelector('[data-a=hide]').onclick = () =>
+        store.patch(`campaigns/${ctx.cid}/characters/${id}`,
+          ch.hidden ? { hidden: null } : { hidden: true, claimedBy: null });
+      row.querySelector('[data-a=del]').onclick = () => {
+        if (confirm(`Permanently delete ${ch.name}?`))
+          store.del(`campaigns/${ctx.cid}/characters/${id}`);
+      };
+      roster.appendChild(row);
+    }
+    p.appendChild(roster);
+
+    // --- danger zone ---
+    const danger = document.createElement('div');
+    danger.innerHTML = `<h3 style="margin-top:14px;color:#e07070">Danger zone</h3>
+      <button id="delCampaign" style="background:#7a2a2a;color:#fff">Delete campaign</button>`;
+    danger.querySelector('#delCampaign').onclick = async () => {
+      const meta = await store.readOnce(`campaigns/${ctx.cid}/meta`);
+      const typed = prompt(`This permanently deletes ALL campaign data from Firebase.\nType the campaign name to confirm: ${meta.name}`);
+      if (typed === meta.name) {
+        await store.del(`campaigns/${ctx.cid}`);
+        location.hash = '';
+      }
+    };
+    p.appendChild(danger);
   });
 }

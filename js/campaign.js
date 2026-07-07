@@ -10,6 +10,7 @@ import { createOverlayLayer } from './render/overlayLayer.js';
 import { createDoorLayer } from './render/doorLayer.js';
 import { createRail } from './ui/rail.js';
 import { showDmPanel } from './ui/dmPanel.js';
+import { showCharacterPanel } from './ui/characterPanel.js';
 import { createFogTool } from './tools/fogTool.js';
 import { createDoorTool } from './tools/doorTool.js';
 import { createMonsterTool } from './tools/monsterTool.js';
@@ -74,6 +75,15 @@ export function enterCampaign(root, cid, meta) {
     ctx.monsterLib = v || {};
     ctx.layers.tokens.renderMonsters(ctx.monsterData, ctx.monsterLib);
   }));
+
+  // Reconnect banner (Firebase buffers writes while offline and replays them).
+  document.querySelector('.banner')?.remove();
+  const banner = document.createElement('div');
+  banner.className = 'banner';
+  banner.textContent = 'Reconnecting…';
+  banner.style.display = 'none';
+  document.body.appendChild(banner);
+  ctx.unsubs.push(store.onConnectionChange(ok => banner.style.display = ok ? 'none' : 'block'));
 
   let unsubMap = null;
   ctx.unsubs.push(() => unsubMap?.());
@@ -152,6 +162,8 @@ function startUi(root, role) {
     ctx.world.registerHandler(e => doorTool.pointerHandler(e));
     rail.onToolChange(t => { if (t !== 'door') ctx.layers.doors.hidePreview(); });
   }
+  if (role.kind === 'char')
+    rail.button('🧝', 'Edit character', () => showCharacterPanel(rail, role.charId));
   const rulerBtn = rail.button('📏', 'Ruler on/off', b => {             // used from Task 13
     const on = localStorage.getItem('vtt_ruler') !== 'off';
     localStorage.setItem('vtt_ruler', on ? 'off' : 'on');
