@@ -73,6 +73,7 @@ export function enterCampaign(root, cid, meta) {
   ctx.unsubs.push(store.sub(`campaigns/${cid}/activeMapId`, mapId => {
     ctx.activeMapId = mapId;
     unsubMap?.();
+    ctx.grid = null; // no snapping/rendering against the old map's grid while the new map loads
     if (!mapId) { ctx.layers.map.clear(); return; }
     unsubMap = store.sub(`campaigns/${cid}/maps/${mapId}`, map => {
       if (!map?.image) return;
@@ -139,6 +140,7 @@ function startUi(root, role) {
     rail.onToolChange(t => { if (t === 'fog') fogTool.showPopover(); });
     const doorTool = createDoorTool(rail, document.querySelector('#viewport'));
     ctx.world.registerHandler(e => doorTool.pointerHandler(e));
+    rail.onToolChange(t => { if (t !== 'door') ctx.layers.doors.hidePreview(); });
   }
   const rulerBtn = rail.button('📏', 'Ruler on/off', b => {             // used from Task 13
     const on = localStorage.getItem('vtt_ruler') !== 'off';

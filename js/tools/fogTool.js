@@ -7,7 +7,8 @@ import { ctx } from '../campaign.js';
 // stroke mode. Other clients see the result only on commit (pointer release).
 export function createFogTool(rail) {
   function pointerHandler(e) {
-    if (rail.getTool() !== 'fog' || ctx.role?.kind !== 'dm' || !ctx.grid) return false;
+    // rail !== ctx.rail: stale closure from a released role must self-disable
+    if (rail !== ctx.rail || rail.getTool() !== 'fog' || ctx.role?.kind !== 'dm' || !ctx.grid) return false;
     const startW = ctx.world.toWorld(e);
     const startCell = cellOf(startW.x, startW.y, ctx.grid);
     const startKey = cellKey(startCell.col, startCell.row);
