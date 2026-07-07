@@ -1,5 +1,5 @@
 import * as store from './store.js';
-import { kickReason } from './session.js';
+import { sessionId, kickReason } from './session.js';
 import { showRolePopup } from './ui/rolePopup.js';
 import { runSetup } from './ui/setupWizard.js';
 import { createWorld } from './world.js';
@@ -65,6 +65,7 @@ export function enterCampaign(root, cid, meta) {
     if (myDrag?.active) rulers.push({
       startX: myDrag.start.x, startY: myDrag.start.y,
       x: myDrag.current.x, y: myDrag.current.y, speed: myDrag.speed ?? null,
+      own: true, // own drag ruler always shows, whatever the 📏 toggle says
     });
     ctx.layers.overlay.drawRulers(rulers);
   };
