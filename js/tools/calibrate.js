@@ -9,7 +9,7 @@ import { ctx } from '../campaign.js';
 // onDone (optional) fires after a successful save — the setup wizard chains on it.
 export function openCalibration(rail, mapId, map, onDone) {
   let clicks = [];
-  let grid = { cellPx: 50, offX: 0, offY: 0, color: '#000000', opacity: 0.4, visible: false, ...(map.grid || {}) };
+  let grid = { cellPx: 50, offX: 0, offY: 0, color: '#000000', opacity: 0.5, visible: false, ...(map.grid || {}) };
   let startTile = map.startTile || null;
   let mode = 'clicks'; // 'clicks' → 'squares' → 'tune' → 'startTile'
   let active = true;
@@ -18,9 +18,13 @@ export function openCalibration(rail, mapId, map, onDone) {
   const fogCanvas = document.querySelector('#fogCanvas');
   if (fogCanvas) fogCanvas.style.display = 'none';
 
-  // Grid lines are forced visible locally while calibrating, whatever the
-  // synced visible flag says — you can't align lines you can't see.
-  const redraw = () => ctx.layers.grid.draw({ ...grid, visible: true }, map.image.w, map.image.h);
+  // No grid overlay while placing points — the uncalibrated default lines are
+  // pure noise. From the tune step on, lines are forced visible locally
+  // whatever the synced flag says: you can't align lines you can't see.
+  const redraw = () => {
+    if (mode === 'clicks' || mode === 'squares') ctx.layers.grid.draw(null, map.image.w, map.image.h);
+    else ctx.layers.grid.draw({ ...grid, visible: true }, map.image.w, map.image.h);
+  };
   redraw();
 
   // ---- point markers ----
@@ -91,7 +95,7 @@ export function openCalibration(rail, mapId, map, onDone) {
           <button class="primary" id="calOk" ${clicks.length === 2 ? '' : 'disabled'}>OK</button>
           <button id="calSkip">Skip (keep current)</button>`;
         p.querySelector('#calOk').onclick = () => { mode = 'squares'; render(); };
-        p.querySelector('#calSkip').onclick = () => { clearMarkers(); mode = 'tune'; render(); };
+        p.querySelector('#calSkip').onclick = () => { clearMarkers(); mode = 'tune'; redraw(); render(); };
         return;
       }
       if (mode === 'squares') {
@@ -148,7 +152,7 @@ export function openCalibration(rail, mapId, map, onDone) {
     bind('#tOffX', 'offX'); bind('#tOffY', 'offY');
     bind('#tColor', 'color', false); bind('#tOp', 'opacity');
     p.querySelector('#tVis').onchange = e => { grid.visible = e.target.checked; redraw(); };
-    p.querySelector('#tRedo').onclick = () => { clearMarkers(); mode = 'clicks'; render(); };
+    p.querySelector('#tRedo').onclick = () => { clearMarkers(); mode = 'clicks'; redraw(); render(); };
     p.querySelector('#tNext').onclick = () => { mode = 'startTile'; render(); };
   }
 

@@ -32,7 +32,7 @@ export function showDmPanel(rail) {
           image,
           // Grid overlay starts hidden — calibration forces lines locally;
           // the DM opts into showing it to everyone via the tune checkbox.
-          grid: { cellPx: 50, offX: 0, offY: 0, color: '#000000', opacity: 0.4, visible: false },
+          grid: { cellPx: 50, offX: 0, offY: 0, color: '#000000', opacity: 0.5, visible: false },
         });
         await store.write(`campaigns/${ctx.cid}/activeMapId`, mapId);
         const m = await store.readOnce(`campaigns/${ctx.cid}/maps/${mapId}`);
@@ -49,9 +49,14 @@ export function showDmPanel(rail) {
       row.innerHTML = `<span>${esc(ch.name)}${ch.hidden ? ' (hidden)' : ''}</span>
         <button data-a="hide">${ch.hidden ? 'unhide' : 'hide'}</button>
         <button data-a="del">delete</button>`;
-      row.querySelector('[data-a=hide]').onclick = () =>
-        store.patch(`campaigns/${ctx.cid}/characters/${id}`,
-          ch.hidden ? { hidden: null } : { hidden: true });
+      row.querySelector('[data-a=hide]').onclick = async () => {
+        ch.hidden = !ch.hidden;
+        await store.patch(`campaigns/${ctx.cid}/characters/${id}`,
+          ch.hidden ? { hidden: true } : { hidden: null });
+        // refresh the row in place — no popover reopen needed
+        row.querySelector('span').innerHTML = `${esc(ch.name)}${ch.hidden ? ' (hidden)' : ''}`;
+        row.querySelector('[data-a=hide]').textContent = ch.hidden ? 'unhide' : 'hide';
+      };
       row.querySelector('[data-a=del]').onclick = () => {
         if (confirm(`Permanently delete ${ch.name}?`))
           store.del(`campaigns/${ctx.cid}/characters/${id}`);

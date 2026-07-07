@@ -15,6 +15,15 @@ export function runSetup(rail) {
         PNG or JPG, up to 8&nbsp;MB. You can add more maps later in ⚙ Settings.</p>
         <label for="suFile">Map image</label>
         <input id="suFile" type="file" accept="image/*">`;
+      if (ctx.activeMapId) { // refresh mid-setup: the earlier upload survives
+        const btn = document.createElement('button');
+        btn.textContent = 'Continue with the already-uploaded map';
+        btn.onclick = async () => {
+          const m = await store.readOnce(`campaigns/${ctx.cid}/maps/${ctx.activeMapId}`);
+          if (m) openCalibration(rail, ctx.activeMapId, m, stepFog);
+        };
+        p.appendChild(btn);
+      }
       p.querySelector('#suFile').onchange = async e => {
         const file = e.target.files[0];
         e.target.value = '';
@@ -25,7 +34,7 @@ export function runSetup(rail) {
           await store.write(`campaigns/${ctx.cid}/maps/${mapId}`, {
             name: file.name.replace(/\.[^.]+$/, ''),
             image,
-            grid: { cellPx: 50, offX: 0, offY: 0, color: '#000000', opacity: 0.4, visible: false },
+            grid: { cellPx: 50, offX: 0, offY: 0, color: '#000000', opacity: 0.5, visible: false },
           });
           await store.write(`campaigns/${ctx.cid}/activeMapId`, mapId);
           const m = await store.readOnce(`campaigns/${ctx.cid}/maps/${mapId}`);

@@ -31,6 +31,8 @@ export function showLanding(root) {
     for (let i = 0; i < 3; i++) {
       try {
         await store.del(`campaigns/${cid}/meta/pw`);
+        // Marks this browser as the creator: only they get the setup wizard.
+        localStorage.setItem(`vtt_creator_${cid}`, '1');
         location.hash = `#/c/${cid}`;
         return;
       } catch {

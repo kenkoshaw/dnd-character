@@ -113,9 +113,10 @@ export function enterCampaign(root, cid, meta) {
     });
   }));
 
-  if (!meta.setupDone) {
-    // Freshly created campaign: the creator walks the guided setup as DM
-    // (upload → calibrate → fog → share link) before roles matter.
+  if (!meta.setupDone && localStorage.getItem(`vtt_creator_${cid}`)) {
+    // Freshly created campaign, in the creator's own browser: walk the guided
+    // setup as DM (upload → calibrate → fog → share link). Anyone else who
+    // opens the link early gets the normal role popup like always.
     ctx.role = { kind: 'dm' };
     startUi(root, ctx.role);
     runSetup(ctx.rail);
@@ -124,10 +125,20 @@ export function enterCampaign(root, cid, meta) {
   }
 }
 
+// Fog wash (DM 50% vs player black) and monster culling render from ctx.role,
+// so every role change must repaint them or the previous role's view lingers.
+function refreshRoleViews() {
+  ctx.layers?.fog?.draw(ctx.revealed, ctx.fogPreview || null);
+  ctx.layers?.tokens?.renderMonsters(ctx.monsterData || {}, ctx.monsterLib);
+  ctx.layers?.tokens?.renderCharacters(ctx.characters);
+}
+
 function pickRole(root) {
   ctx.role = null;
+  refreshRoleViews(); // the popup's backdrop is always the player view
   showRolePopup(root, ctx.cid, role => {
     ctx.role = role;
+    refreshRoleViews();
     if (role.kind === 'char') watchKick(root, role.charId);
     startUi(root, role);
   });
