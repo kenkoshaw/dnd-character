@@ -7,9 +7,11 @@ import { createGridLayer } from './render/gridLayer.js';
 import { createTokenLayer } from './render/tokenLayer.js';
 import { createFogLayer } from './render/fogLayer.js';
 import { createOverlayLayer } from './render/overlayLayer.js';
+import { createDoorLayer } from './render/doorLayer.js';
 import { createRail } from './ui/rail.js';
 import { showDmPanel } from './ui/dmPanel.js';
 import { createFogTool } from './tools/fogTool.js';
+import { createDoorTool } from './tools/doorTool.js';
 
 // Shared per-campaign context, extended by later tasks.
 export const ctx = {
@@ -37,6 +39,7 @@ export function enterCampaign(root, cid, meta) {
     // later tasks append: doors, monsters, fog, characters, overlay (this order)
   };
   ctx.layers.tokens = createTokenLayer(ctx.world.el);
+  ctx.layers.doors = createDoorLayer(ctx.world.el, ctx.layers.tokens.monstersEl);
   ctx.layers.fog = createFogLayer(ctx.world.el, ctx.layers.tokens.charsEl);
   ctx.layers.overlay = createOverlayLayer(ctx.world.el);
   ctx.world.registerHandler(e => ctx.layers.tokens.dragHandler(e));
@@ -78,6 +81,7 @@ export function enterCampaign(root, cid, meta) {
       ctx.startTile = map.startTile || null;
       ctx.revealed = new Set(Object.keys(map.fog || {}));
       ctx.layers.fog.draw(ctx.revealed, ctx.fogPreview || null);
+      ctx.layers.doors.render(map.doors);
       ctx.layers.tokens.renderMonsters?.(map.monsters); // culling refresh (Task 15)
       ctx.layers.map.setImage(map.image);
       ctx.layers.grid.draw(map.grid, map.image.w, map.image.h);
@@ -133,6 +137,8 @@ function startUi(root, role) {
     const fogTool = createFogTool(rail);
     ctx.world.registerHandler(e => fogTool.pointerHandler(e));
     rail.onToolChange(t => { if (t === 'fog') fogTool.showPopover(); });
+    const doorTool = createDoorTool(rail, document.querySelector('#viewport'));
+    ctx.world.registerHandler(e => doorTool.pointerHandler(e));
   }
   const rulerBtn = rail.button('📏', 'Ruler on/off', b => {             // used from Task 13
     const on = localStorage.getItem('vtt_ruler') !== 'off';
