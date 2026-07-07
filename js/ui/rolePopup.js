@@ -1,5 +1,5 @@
 import * as store from '../store.js';
-import { processTokenImage } from '../imageUtil.js';
+import { cropCircle } from './cropper.js';
 import { esc } from './esc.js';
 import { ctx } from '../campaign.js';
 
@@ -65,7 +65,8 @@ export function showRolePopup(root, cid, onRole) {
     const file = wrap.querySelector('#ncImg').files[0];
     if (!name || !file) { err.textContent = 'Name and image required.'; return; }
     try {
-      const { b64 } = await processTokenImage(file);
+      const b64 = await cropCircle(file);
+      if (!b64) return; // crop cancelled
       const charId = crypto.randomUUID().replaceAll('-', '');
       await store.write(`campaigns/${cid}/characters/${charId}`, { name, speed, imageB64: b64 });
       choose({ kind: 'char', charId });
