@@ -84,7 +84,9 @@ export function createMonsterTool(rail, getLib) {
         const lib = library()[m.libRef];
         const maxHp = lib?.defaultMaxHp ?? m.hp.max;
         store.write(`campaigns/${ctx.cid}/maps/${ctx.activeMapId}/monsters/${crypto.randomUUID().replaceAll('-', '')}`,
-          { ...m, x: m.x + ctx.grid.cellPx / 2, y: m.y + ctx.grid.cellPx / 2,
+          { ...m,
+            x: Math.max(0, Math.min(ctx.mapSize.w, m.x + ctx.grid.cellPx / 2)),
+            y: Math.max(0, Math.min(ctx.mapSize.h, m.y + ctx.grid.cellPx / 2)),
             hp: { cur: maxHp, max: maxHp } });
       }
       if (a === 'delete') store.del(base);
