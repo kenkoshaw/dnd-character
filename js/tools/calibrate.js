@@ -83,9 +83,10 @@ export function openCalibration(rail, mapId, map) {
     rail.showPopover(p => {
       if (mode === 'clicks') {
         p.innerHTML = `<h3>Calibrate grid</h3>
-          <p style="font-size:12px;color:#aaa">Drag and zoom the map freely. Click two grid
-          intersections along one row or column — a third click moves the nearest point.
-          Points: ${clicks.length}/2</p>
+          <p class="help">Click two corners where grid lines cross — far apart is more
+          accurate, diagonal is fine. Drag to pan and pinch/scroll to zoom as usual;
+          a third click moves the nearest marker.</p>
+          <p class="help"><b>Points placed: ${clicks.length} / 2</b></p>
           <button class="primary" id="calOk" ${clicks.length === 2 ? '' : 'disabled'}>OK</button>
           <button id="calSkip">Skip (keep current)</button>`;
         p.querySelector('#calOk').onclick = () => { mode = 'squares'; render(); };
@@ -93,15 +94,21 @@ export function openCalibration(rail, mapId, map) {
         return;
       }
       if (mode === 'squares') {
-        p.innerHTML = `<h3>Squares between points?</h3><input id="calN" type="number" value="4" min="1">
+        p.innerHTML = `<h3>Tiles between your points</h3>
+          <p class="help">Count the grid squares between the two markers along each
+          direction. Leave one blank if the points share a row or column.</p>
+          <label for="calNx">Tiles across (X)</label><input id="calNx" type="number" min="0">
+          <label for="calNy">Tiles down (Y)</label><input id="calNy" type="number" min="0">
           <p class="err" id="calErr"></p>
           <button class="primary" id="calGo">Compute</button>
           <button id="calBack">Back</button>`;
         p.querySelector('#calGo').onclick = () => {
-          // calibrate returns null on degenerate input (n < 1, identical points)
-          const result = calibrate(clicks[0], clicks[1], Number(p.querySelector('#calN').value));
+          // calibrate returns null when neither axis is usable
+          const nx = Number(p.querySelector('#calNx').value);
+          const ny = Number(p.querySelector('#calNy').value);
+          const result = calibrate(clicks[0], clicks[1], nx, ny);
           if (!result) {
-            p.querySelector('#calErr').textContent = 'Invalid input — two distinct intersections, squares ≥ 1.';
+            p.querySelector('#calErr').textContent = 'Enter the tile count for at least one axis the points actually span.';
             return;
           }
           grid = { ...grid, ...result };
@@ -113,8 +120,10 @@ export function openCalibration(rail, mapId, map) {
         return;
       }
       if (mode === 'tune') { renderTune(p); return; }
-      p.innerHTML = `<h3>Click the starting tile</h3>
-        <p style="font-size:12px;color:#aaa">${startTile ? `Start: ${startTile.col}, ${startTile.row}` : 'Click a cell on the map (dragging still pans).'}</p>
+      p.innerHTML = `<h3>Choose the starting tile</h3>
+        <p class="help">Click the square where new characters should appear.
+        Dragging still pans the map.</p>
+        <p class="help"><b>${startTile ? `Start tile: column ${startTile.col}, row ${startTile.row}` : 'No tile chosen yet.'}</b></p>
         <button class="primary" id="calSave" ${startTile ? '' : 'disabled'}>Save map setup</button>`;
       p.querySelector('#calSave').onclick = save;
     });

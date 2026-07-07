@@ -36,12 +36,23 @@ test('distanceFt: 5ft per cell, straight line, rounded to nearest 5', () => {
   assert.equal(distanceFt({ x: 0, y: 0 }, { x: 60, y: 0 }, grid), 5);     // 1.2 cells → 5
 });
 
-test('calibrate from two intersections N squares apart', () => {
-  // clicks on same row, 4 squares apart, grid cellPx=50 offX=10 offY=20
-  const g = calibrate({ x: 60, y: 70 }, { x: 260, y: 72 }, 4);
+test('calibrate: X-axis only (points on one row)', () => {
+  // points on same row, 4 tiles apart in X, grid cellPx=50 offX=10 offY=20
+  const g = calibrate({ x: 60, y: 70 }, { x: 260, y: 72 }, 4, 0);
   assert.equal(g.cellPx, 50);
   assert.equal(g.offX, 10);
   assert.equal(g.offY, 20);
+});
+
+test('calibrate: diagonal points average both axis estimates', () => {
+  // 4 tiles across (200px → 50) and 2 tiles down (110px → 55) → 52.5
+  const g = calibrate({ x: 60, y: 70 }, { x: 260, y: 180 }, 4, 2);
+  assert.equal(g.cellPx, 52.5);
+});
+
+test('calibrate: Y-axis only (points on one column)', () => {
+  const g = calibrate({ x: 60, y: 70 }, { x: 61, y: 270 }, 0, 4);
+  assert.equal(g.cellPx, 50);
 });
 
 test('snapDoor snaps to nearest grid line, half-cell steps along it', () => {
@@ -54,10 +65,11 @@ test('snapDoor snaps to nearest grid line, half-cell steps along it', () => {
 
 test('calibrate rejects invalid input with null', () => {
   const p1 = { x: 60, y: 70 }, p2 = { x: 260, y: 72 };
-  assert.equal(calibrate(p1, p2, 0), null);       // cleared number field
-  assert.equal(calibrate(p1, p2, -4), null);      // negative
-  assert.equal(calibrate(p1, p2, NaN), null);
-  assert.equal(calibrate(p1, { x: 60.4, y: 70.2 }, 4), null); // near-identical clicks
+  assert.equal(calibrate(p1, p2, 0, 0), null);      // both counts cleared
+  assert.equal(calibrate(p1, p2, -4, -1), null);    // negative
+  assert.equal(calibrate(p1, p2, NaN, NaN), null);
+  assert.equal(calibrate(p1, { x: 60.4, y: 70.2 }, 4, 4), null); // near-identical points
+  assert.equal(calibrate(p1, p2, 0, 4), null);      // Y count given but points share a row
 });
 
 test('snapDoor exact tie between lines resolves to vertical', () => {

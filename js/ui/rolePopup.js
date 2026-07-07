@@ -12,8 +12,11 @@ export function showRolePopup(root, cid, onRole) {
     <h2>Choose your role</h2>
     <div id="roleList"></div>
     <h2 style="margin-top:16px">New character</h2>
-    <input id="ncName" placeholder="Character name">
-    <input id="ncSpeed" type="number" value="30" min="0" step="5" placeholder="Walk speed (ft)">
+    <label for="ncName">Character name</label>
+    <input id="ncName">
+    <label for="ncSpeed">Walk speed (ft)</label>
+    <input id="ncSpeed" type="number" min="0" step="5" placeholder="30">
+    <label for="ncImg">Token image</label>
     <input id="ncImg" type="file" accept="image/*">
     <button class="primary" id="ncCreate">Create &amp; play</button>
     <p class="err" id="roleErr"></p>
@@ -63,7 +66,8 @@ export function showRolePopup(root, cid, onRole) {
   wrap.querySelector('#ncCreate').onclick = async () => {
     err.textContent = '';
     const name = wrap.querySelector('#ncName').value.trim();
-    const speed = Number(wrap.querySelector('#ncSpeed').value);
+    const speedRaw = Number(wrap.querySelector('#ncSpeed').value);
+    const speed = Number.isFinite(speedRaw) && speedRaw > 0 ? speedRaw : 30; // blank → 5e default
     const file = wrap.querySelector('#ncImg').files[0];
     if (!name || !file) { err.textContent = 'Name and image required.'; return; }
     try {

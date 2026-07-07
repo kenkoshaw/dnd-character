@@ -14,23 +14,47 @@ export function createWorld(viewport, getMapSize) {
     el.style.transform = `translate(${view.panX}px, ${view.panY}px) scale(${view.zoom})`;
   apply();
 
-  // passive:false is safe: the app shell is overflow:hidden — nothing scrolls.
-  viewport.addEventListener('wheel', e => {
-    e.preventDefault();
-    // Exponential in deltaY: gentle per mouse-wheel notch, and trackpads'
-    // streams of small deltas accumulate smoothly instead of compounding 1.1×.
-    const factor = Math.exp(-e.deltaY * 0.0008);
-    // Zoom-out floor: the whole map just fits the viewport (fallback 0.1).
+  // Zoom-out floor: the whole map just fits the viewport (fallback 0.1).
+  function minZoom() {
     const ms = getMapSize?.();
-    const minZoom = ms?.w > 0 && ms?.h > 0
+    return ms?.w > 0 && ms?.h > 0
       ? Math.min(4, Math.min(viewport.clientWidth / ms.w, viewport.clientHeight / ms.h))
       : 0.1;
-    const z = Math.min(4, Math.max(minZoom, view.zoom * factor));
-    const w = screenToWorld(e.clientX, e.clientY, view);
-    view.panX = e.clientX - w.x * z;
-    view.panY = e.clientY - w.y * z;
+  }
+
+  function zoomAt(cx, cy, factor) {
+    const z = Math.min(4, Math.max(minZoom(), view.zoom * factor));
+    const w = screenToWorld(cx, cy, view);
+    view.panX = cx - w.x * z;
+    view.panY = cy - w.y * z;
     view.zoom = z;
     apply();
+  }
+
+  // Fit the whole map in the viewport, centered (also the zoom-out floor).
+  function fitTo(w, h) {
+    const z = Math.min(4, Math.min(viewport.clientWidth / w, viewport.clientHeight / h));
+    view.zoom = z;
+    view.panX = (viewport.clientWidth - w * z) / 2;
+    view.panY = (viewport.clientHeight - h * z) / 2;
+    apply();
+  }
+
+  // passive:false is safe: the app shell is overflow:hidden — nothing scrolls.
+  // Zoom ONLY on pinch (ctrlKey wheel) or a real mouse wheel; two-finger
+  // trackpad swipes pan the map instead.
+  viewport.addEventListener('wheel', e => {
+    e.preventDefault();
+    const isPinch = e.ctrlKey;
+    const isMouseWheel = e.deltaMode !== 0 || (Math.abs(e.deltaY) >= 100 && e.deltaX === 0);
+    if (isPinch || isMouseWheel) {
+      // Pinch deltas are small and frequent; wheel notches are big and sparse.
+      zoomAt(e.clientX, e.clientY, Math.exp(-e.deltaY * (isPinch ? 0.01 : 0.0008)));
+    } else {
+      view.panX -= e.deltaX;
+      view.panY -= e.deltaY;
+      apply();
+    }
   }, { passive: false });
 
   viewport.addEventListener('pointerdown', e => {
@@ -63,7 +87,7 @@ export function createWorld(viewport, getMapSize) {
   }
 
   return {
-    el, view,
+    el, view, fitTo,
     registerHandler: fn => {
       handlers.unshift(fn); // later registrations take priority
       return () => {

@@ -103,6 +103,10 @@ export function enterCampaign(root, cid, meta) {
       ctx.monsterData = map.monsters || {};
       ctx.layers.tokens.renderMonsters(ctx.monsterData, ctx.monsterLib);
       ctx.layers.map.setImage(map.image);
+      if (ctx.fittedMap !== mapId) { // fit + center once per map switch
+        ctx.fittedMap = mapId;
+        ctx.world.fitTo(map.image.w, map.image.h);
+      }
       ctx.layers.grid.draw(map.grid, map.image.w, map.image.h);
       ctx.layers.tokens.renderCharacters(ctx.characters);
     });

@@ -39,15 +39,21 @@ export function distanceFt(a, b, grid) {
   return Math.round(px / grid.cellPx) * 5;
 }
 
-// Two clicks on grid intersections along one row/column, n squares apart.
-// Dominant axis tolerates a slightly diagonal click pair.
-// Returns null on invalid input (n < 1, or clicks (nearly) identical) so the
-// caller can show an error instead of persisting NaN/Infinity grid state.
-export function calibrate(p1, p2, n) {
-  if (!Number.isFinite(n) || n < 1) return null;
-  const span = Math.max(Math.abs(p2.x - p1.x), Math.abs(p2.y - p1.y));
-  if (span < 1) return null;
-  const cellPx = span / n;
+// Two points on grid intersections, with the tile counts between them along
+// each axis (points may be diagonal). Either count can be omitted (0/blank)
+// when the points share a row/column; cells stay square — when both axes are
+// given the estimates are averaged. Returns null when no axis is usable
+// (count < 1 or span < 1px) so callers can show an error instead of
+// persisting NaN/Infinity grid state.
+export function calibrate(p1, p2, nx, ny) {
+  const dx = Math.abs(p2.x - p1.x), dy = Math.abs(p2.y - p1.y);
+  const estimates = [];
+  // An axis only counts when it implies a sane cell (≥ 5px) — this also
+  // discards a few pixels of accidental slope on otherwise-straight points.
+  if (Number.isFinite(nx) && nx >= 1 && dx / nx >= 5) estimates.push(dx / nx);
+  if (Number.isFinite(ny) && ny >= 1 && dy / ny >= 5) estimates.push(dy / ny);
+  if (!estimates.length) return null;
+  const cellPx = estimates.reduce((a, b) => a + b, 0) / estimates.length;
   const mod = v => ((v % cellPx) + cellPx) % cellPx;
   return { cellPx, offX: mod(p1.x), offY: mod(p1.y) };
 }

@@ -6,7 +6,7 @@ export function createDoorLayer(worldEl, beforeEl) {
   worldEl.insertBefore(container, beforeEl);
 
   function doorStyle(d) {
-    const len = ctx.grid.cellPx, thick = ctx.grid.cellPx * 0.18;
+    const len = ctx.grid.cellPx * 1.06, thick = ctx.grid.cellPx * 0.28;
     const w = d.orientation === 'h' ? len : thick;
     const h = d.orientation === 'h' ? thick : len;
     return `width:${w}px;height:${h}px;left:${d.x - w / 2}px;top:${d.y - h / 2}px`;
