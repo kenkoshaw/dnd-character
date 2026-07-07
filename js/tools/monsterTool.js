@@ -51,18 +51,24 @@ export function createMonsterTool(rail, getLib) {
 
   // Right-click context menu + click-to-edit HP (DM only)
   function bindTokenMenus(viewport) {
-    viewport.addEventListener('contextmenu', e => {
+    const onContext = e => {
       const el = e.target.closest('.monster');
       if (!el || ctx.role?.kind !== 'dm' || rail !== ctx.rail) return;
       e.preventDefault();
       menu(e.clientX, e.clientY, el.dataset.monsterId);
-    });
-    viewport.addEventListener('click', e => {
+    };
+    const onClick = e => {
       const el = e.target.closest('.monster');
       if (!el || ctx.role?.kind !== 'dm' || rail !== ctx.rail || rail.getTool()) return;
       if (el.dataset.dragged) { delete el.dataset.dragged; return; } // was a drag, not a click
       hpPanel(el.dataset.monsterId);
-    });
+    };
+    viewport.addEventListener('contextmenu', onContext);
+    viewport.addEventListener('click', onClick);
+    return () => {
+      viewport.removeEventListener('contextmenu', onContext);
+      viewport.removeEventListener('click', onClick);
+    };
   }
 
   async function menu(x, y, id) {

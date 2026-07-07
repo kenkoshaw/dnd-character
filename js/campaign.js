@@ -104,7 +104,6 @@ export function enterCampaign(root, cid, meta) {
       ctx.layers.tokens.renderMonsters(ctx.monsterData, ctx.monsterLib);
       ctx.layers.map.setImage(map.image);
       ctx.layers.grid.draw(map.grid, map.image.w, map.image.h);
-      ctx.onMapData?.(map); // hook for fog/token/door layers added later
       ctx.layers.tokens.renderCharacters(ctx.characters);
     });
   }));
@@ -122,6 +121,7 @@ function pickRole(root) {
 }
 
 let kickUnsub = null;
+let toolCleanups = [];
 function watchKick(root, charId) {
   kickUnsub?.(); // never two kick watchers
   const unsub = store.sub(`campaigns/${ctx.cid}/characters/${charId}`, ch => {
@@ -157,18 +157,23 @@ function startUi(root, role) {
   ctx.rail?.closeExclusive?.(); // calibration must not outlive the rail that owns it
   const rail = createRail(role);
   ctx.rail = rail;
+  // Tear down the previous role's tool handlers/listeners — the stale-rail
+  // guards make leftovers inert, but they'd still accumulate per re-pick.
+  toolCleanups.forEach(f => f());
+  toolCleanups = [];
   if (role.kind === 'dm') {
     rail.button('☁', 'Fog of war', b => rail.setTool('fog', b)).dataset.tool = 'fog';      // handler Task 12
     rail.button('🚪', 'Doors', b => rail.setTool('door', b)).dataset.tool = 'door';         // handler Task 14
     const monsterTool = createMonsterTool(rail, () => ctx.monsterLib);
-    monsterTool.bindTokenMenus(document.querySelector('#viewport'));
+    toolCleanups.push(monsterTool.bindTokenMenus(document.querySelector('#viewport')));
     rail.button('👾', 'Monsters', () => monsterTool.showPopover());
     rail.button('⚙', 'Settings', () => showDmPanel(rail));
     const fogTool = createFogTool(rail);
-    ctx.world.registerHandler(e => fogTool.pointerHandler(e));
+    toolCleanups.push(ctx.world.registerHandler(e => fogTool.pointerHandler(e)));
     rail.onToolChange(t => { if (t === 'fog') fogTool.showPopover(); });
     const doorTool = createDoorTool(rail, document.querySelector('#viewport'));
-    ctx.world.registerHandler(e => doorTool.pointerHandler(e));
+    toolCleanups.push(ctx.world.registerHandler(e => doorTool.pointerHandler(e)));
+    toolCleanups.push(doorTool.dispose);
     rail.onToolChange(t => { if (t !== 'door') ctx.layers.doors.hidePreview(); });
   }
   if (role.kind === 'char')

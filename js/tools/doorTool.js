@@ -3,14 +3,15 @@ import * as store from '../store.js';
 import { ctx } from '../campaign.js';
 
 export function createDoorTool(rail, viewport) {
-  viewport.addEventListener('pointermove', e => {
+  const onMove = e => {
     if (rail !== ctx.rail || rail.getTool() !== 'door' || ctx.role?.kind !== 'dm' || !ctx.grid) {
       ctx.layers.doors.hidePreview();
       return;
     }
     const w = ctx.world.toWorld(e);
     ctx.layers.doors.showPreview(snapDoor(w.x, w.y, ctx.grid));
-  });
+  };
+  viewport.addEventListener('pointermove', onMove);
 
   function pointerHandler(e) {
     // rail !== ctx.rail: stale closure from a released role must self-disable
@@ -28,5 +29,8 @@ export function createDoorTool(rail, viewport) {
     );
     return true;
   }
-  return { pointerHandler };
+  return {
+    pointerHandler,
+    dispose: () => viewport.removeEventListener('pointermove', onMove),
+  };
 }
