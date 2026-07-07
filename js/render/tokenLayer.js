@@ -84,6 +84,8 @@ export function createTokenLayer(worldEl) {
     let last = { ...start };
     let lastWrite = 0;
     draggingId = charId || monsterId;
+    // Presence cleanup: a killed tab mid-drag must not leave a ghost ruler.
+    store.dropOnDisconnect(`campaigns/${ctx.cid}/drags/${sessionId}`);
     el.classList.add('dragging');
     el.setPointerCapture(e.pointerId);
 

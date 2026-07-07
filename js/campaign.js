@@ -138,6 +138,7 @@ function startUi(root, role) {
     const on = localStorage.getItem('vtt_ruler') !== 'off';
     localStorage.setItem('vtt_ruler', on ? 'off' : 'on');
     b.classList.toggle('active', !on);
+    ctx.layers.overlay?.drawRulers([]); // clear immediately; next event redraws if on
   });
   rulerBtn.classList.toggle('active', localStorage.getItem('vtt_ruler') !== 'off');
   rail.button('⏏', 'Release role', () => releaseRole(root));

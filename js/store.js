@@ -43,6 +43,12 @@ export async function release(path) {
   await remove(r);
 }
 
+// Arm presence cleanup for an arbitrary path (e.g. in-flight drag streams):
+// if this tab dies, the server deletes the node.
+export function dropOnDisconnect(path) {
+  onDisconnect(ref(db, path)).remove();
+}
+
 // Firebase built-in connectivity flag.
 export function onConnectionChange(cb) {
   return onValue(ref(db, '.info/connected'), snap => cb(!!snap.val()));
