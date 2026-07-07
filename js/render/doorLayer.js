@@ -27,11 +27,12 @@ export function createDoorLayer(worldEl, beforeEl) {
   // Hover preview element for the door tool (kept out of render()'s wipe)
   const preview = document.createElement('div');
   preview.className = 'door';
-  preview.style.opacity = '0.5';
-  preview.style.display = 'none';
+  preview.style.cssText = 'opacity:.5;display:none;pointer-events:none';
   container.appendChild(preview);
   function showPreview(d) {
-    preview.style.cssText = doorStyle(d) + ';opacity:.5';
+    // pointer-events:none — the preview tracks the cursor and must never
+    // swallow the click meant for an existing door underneath it
+    preview.style.cssText = doorStyle(d) + ';opacity:.5;pointer-events:none';
     preview.style.display = 'block';
   }
   function hidePreview() { preview.style.display = 'none'; }
