@@ -84,7 +84,9 @@ campaigns/<cid>/
     image: {b64, w, h}             # client-side re-encode, JPEG ≤ ~2 MB
     grid: {cellPx, offX, offY, color, opacity, visible}  # DM-set, synced
     startTile: {col, row}
-    fog/<"col_row">: true          # revealed cells; absent = fogged (default)
+    fog/<"col_row">: true          # revealed cells; absent = fogged
+    fogInit: bool                  # set on first calibration save, which
+                                   # reveals the whole map (DM paints fog ON)
     doors/<doorId>: {x, y, orientation: "h" | "v"}  # grid-line snapped
     monsters/<tokenId>:
       libRef, size: 0.5 | 1 | 2    # side length in cells: ¼-area, 1×1, 2×2

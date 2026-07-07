@@ -1,71 +1,120 @@
 import { calibrate, cellOf } from '../geometry.js';
+import { allCellKeys } from '../fogLogic.js';
 import * as store from '../store.js';
 import { ctx } from '../campaign.js';
 
-// Full calibration flow for one map: two clicks → squares-apart → fine-tune →
-// grid style → click start tile → save. Runs as a popover + world click capture.
+// Full calibration flow for one map: place two points (pan/zoom stays free) →
+// OK → squares-apart → fine-tune → grid style → click start tile → save.
+// Runs as a popover + a click-vs-drag world handler.
 export function openCalibration(rail, mapId, map) {
   let clicks = [];
-  let grid = { cellPx: 50, offX: 0, offY: 0, color: '#000000', opacity: 0.4, visible: true, ...(map.grid || {}) };
+  let grid = { cellPx: 50, offX: 0, offY: 0, color: '#000000', opacity: 0.4, visible: false, ...(map.grid || {}) };
   let startTile = map.startTile || null;
-  let mode = 'clicks'; // 'clicks' → 'tune' → 'startTile'
+  let mode = 'clicks'; // 'clicks' → 'squares' → 'tune' → 'startTile'
   let active = true;
 
-  const redraw = () => ctx.layers.grid.draw(grid, map.image.w, map.image.h);
+  // Calibrate against the bare map: hide the fog wash for the duration.
+  const fogCanvas = document.querySelector('#fogCanvas');
+  if (fogCanvas) fogCanvas.style.display = 'none';
+
+  // Grid lines are forced visible locally while calibrating, whatever the
+  // synced visible flag says — you can't align lines you can't see.
+  const redraw = () => ctx.layers.grid.draw({ ...grid, visible: true }, map.image.w, map.image.h);
   redraw();
 
-  const clickHandler = e => {
-    if (!active) return false;
-    if (mode === 'clicks') {
-      clicks.push(ctx.world.toWorld(e));
-      if (clicks.length === 2) { mode = 'tune'; render(); }
-      else render();
-      return true;
+  // ---- point markers ----
+  const markers = [];
+  function renderMarkers() {
+    markers.forEach(m => m.remove());
+    markers.length = 0;
+    for (const c of clicks) {
+      const m = document.createElement('div');
+      m.className = 'cal-marker';
+      m.style.left = `${c.x}px`;
+      m.style.top = `${c.y}px`;
+      ctx.world.el.appendChild(m);
+      markers.push(m);
     }
-    if (mode === 'startTile') {
-      const w = ctx.world.toWorld(e);
-      startTile = cellOf(w.x, w.y, grid);
-      render();
-      return true;
+  }
+  function clearMarkers() { clicks = []; renderMarkers(); }
+  function placeMarker(p) {
+    if (clicks.length < 2) clicks.push(p);
+    else { // a third click adjusts the nearest existing point
+      const d0 = Math.hypot(p.x - clicks[0].x, p.y - clicks[0].y);
+      const d1 = Math.hypot(p.x - clicks[1].x, p.y - clicks[1].y);
+      clicks[d0 <= d1 ? 0 : 1] = p;
     }
+    renderMarkers();
+    render();
+  }
+
+  // Click-vs-drag: pointerdown falls through (return false) so pan/zoom keep
+  // working during setup; a release within 5px of the press places a point.
+  const onDown = e => {
+    if (!active || (mode !== 'clicks' && mode !== 'startTile')) return false;
+    const sx = e.clientX, sy = e.clientY;
+    const up = ev => {
+      removeEventListener('pointerup', up);
+      if (!active) return;
+      if (Math.hypot(ev.clientX - sx, ev.clientY - sy) > 5) return; // was a pan
+      const w = ctx.world.toWorld(ev);
+      if (mode === 'clicks') placeMarker(w);
+      else { startTile = cellOf(w.x, w.y, grid); render(); }
+    };
+    addEventListener('pointerup', up);
     return false;
   };
-  const unregister = ctx.world.registerHandler(clickHandler);
-  const cancel = () => { active = false; unregister(); };
+  const unregister = ctx.world.registerHandler(onDown);
+  const cancel = () => {
+    if (!active) return;
+    active = false;
+    unregister();
+    clearMarkers();
+    if (fogCanvas) fogCanvas.style.display = '';
+    // Repaint synced state so an abandoned calibration's preview doesn't linger.
+    if (ctx.grid && ctx.mapSize.w) {
+      ctx.layers.grid.draw(ctx.grid, ctx.mapSize.w, ctx.mapSize.h);
+      ctx.layers.fog.draw(ctx.revealed, ctx.fogPreview || null);
+    }
+  };
   rail.setExclusive(cancel); // closes any previously-open calibration too
 
   function render() {
     rail.showPopover(p => {
       if (mode === 'clicks') {
         p.innerHTML = `<h3>Calibrate grid</h3>
-          <p style="font-size:12px;color:#aaa">Click two grid intersections on the map,
-          along one row or column. Clicks: ${clicks.length}/2</p>
+          <p style="font-size:12px;color:#aaa">Drag and zoom the map freely. Click two grid
+          intersections along one row or column — a third click moves the nearest point.
+          Points: ${clicks.length}/2</p>
+          <button class="primary" id="calOk" ${clicks.length === 2 ? '' : 'disabled'}>OK</button>
           <button id="calSkip">Skip (keep current)</button>`;
-        p.querySelector('#calSkip').onclick = () => { mode = 'tune'; render(); };
+        p.querySelector('#calOk').onclick = () => { mode = 'squares'; render(); };
+        p.querySelector('#calSkip').onclick = () => { clearMarkers(); mode = 'tune'; render(); };
         return;
       }
-      if (mode === 'tune') {
-        if (clicks.length === 2) {
-          p.innerHTML = `<h3>Squares between clicks?</h3><input id="calN" type="number" value="4" min="1">
-            <p class="err" id="calErr"></p>
-            <button class="primary" id="calGo">Compute</button>`;
-          p.querySelector('#calGo').onclick = () => {
-            // calibrate returns null on degenerate input (n < 1, identical clicks)
-            const result = calibrate(clicks[0], clicks[1], Number(p.querySelector('#calN').value));
-            if (!result) {
-              p.querySelector('#calErr').textContent = 'Invalid input — click two distinct intersections, squares ≥ 1.';
-              clicks = []; mode = 'clicks'; render();
-              return;
-            }
-            grid = { ...grid, ...result };
-            clicks = [];
-            redraw(); renderTune(p);
-          };
-        } else renderTune(p);
+      if (mode === 'squares') {
+        p.innerHTML = `<h3>Squares between points?</h3><input id="calN" type="number" value="4" min="1">
+          <p class="err" id="calErr"></p>
+          <button class="primary" id="calGo">Compute</button>
+          <button id="calBack">Back</button>`;
+        p.querySelector('#calGo').onclick = () => {
+          // calibrate returns null on degenerate input (n < 1, identical points)
+          const result = calibrate(clicks[0], clicks[1], Number(p.querySelector('#calN').value));
+          if (!result) {
+            p.querySelector('#calErr').textContent = 'Invalid input — two distinct intersections, squares ≥ 1.';
+            return;
+          }
+          grid = { ...grid, ...result };
+          clearMarkers();
+          mode = 'tune';
+          redraw(); render();
+        };
+        p.querySelector('#calBack').onclick = () => { mode = 'clicks'; render(); };
         return;
       }
+      if (mode === 'tune') { renderTune(p); return; }
       p.innerHTML = `<h3>Click the starting tile</h3>
-        <p style="font-size:12px;color:#aaa">${startTile ? `Start: ${startTile.col}, ${startTile.row}` : 'Click a cell on the map.'}</p>
+        <p style="font-size:12px;color:#aaa">${startTile ? `Start: ${startTile.col}, ${startTile.row}` : 'Click a cell on the map (dragging still pans).'}</p>
         <button class="primary" id="calSave" ${startTile ? '' : 'disabled'}>Save map setup</button>`;
       p.querySelector('#calSave').onclick = save;
     });
@@ -79,7 +128,7 @@ export function openCalibration(rail, mapId, map) {
       <label>Line color</label><input id="tColor" type="color" value="${grid.color}">
       <label>Opacity</label><input id="tOp" type="range" min="0" max="1" step="0.05" value="${grid.opacity}">
       <label><input id="tVis" type="checkbox" ${grid.visible ? 'checked' : ''} style="width:auto"> grid visible to everyone</label>
-      <button id="tRedo">Redo clicks</button><button class="primary" id="tNext">Next: start tile</button>`;
+      <button id="tRedo">Redo points</button><button class="primary" id="tNext">Next: start tile</button>`;
     const bind = (sel, key, num = true) => p.querySelector(sel).oninput = e => {
       grid[key] = num ? Number(e.target.value) : e.target.value; redraw();
     };
@@ -89,12 +138,20 @@ export function openCalibration(rail, mapId, map) {
     bind('#tOffX', 'offX'); bind('#tOffY', 'offY');
     bind('#tColor', 'color', false); bind('#tOp', 'opacity');
     p.querySelector('#tVis').onchange = e => { grid.visible = e.target.checked; redraw(); };
-    p.querySelector('#tRedo').onclick = () => { clicks = []; mode = 'clicks'; render(); };
+    p.querySelector('#tRedo').onclick = () => { clearMarkers(); mode = 'clicks'; render(); };
     p.querySelector('#tNext').onclick = () => { mode = 'startTile'; render(); };
   }
 
   async function save() {
-    await store.patch(`campaigns/${ctx.cid}/maps/${mapId}`, { grid, startTile });
+    const updates = { grid, startTile };
+    if (!map.fogInit) {
+      // First-time setup: start with the whole map revealed — the DM paints
+      // fog ON afterwards. fogInit stops re-calibration wiping painted fog.
+      updates.fog = Object.fromEntries(
+        allCellKeys(grid, map.image.w, map.image.h).map(k => [k, true]));
+      updates.fogInit = true;
+    }
+    await store.patch(`campaigns/${ctx.cid}/maps/${mapId}`, updates);
     rail.clearExclusive(cancel);
     cancel();
     rail.closePopover();

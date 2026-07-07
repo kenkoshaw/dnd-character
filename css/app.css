@@ -49,3 +49,5 @@ button { cursor: pointer; }
 .ctx-menu div { padding: 8px 12px; cursor: pointer; font-size: 13px; }
 .ctx-menu div:hover { background: #3a3a44; }
 .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #26262e; border: 1px solid #555; padding: 10px 16px; border-radius: 8px; z-index: 300; }
+
+.cal-marker { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border: 3px solid #e05050; border-radius: 50%; background: rgba(224,80,80,.25); pointer-events: none; z-index: 15; }

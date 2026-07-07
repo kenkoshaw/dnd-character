@@ -2,7 +2,8 @@ import { screenToWorld } from './geometry.js';
 
 // Creates the transformed world container + pan/zoom + pointer dispatch.
 // Tools/tokens register handlers; first handler returning true wins, else pan.
-export function createWorld(viewport) {
+// getMapSize (optional): () => {w, h} — bounds zoom-out to "whole map visible".
+export function createWorld(viewport, getMapSize) {
   const el = document.createElement('div');
   el.id = 'world';
   viewport.appendChild(el);
@@ -16,8 +17,15 @@ export function createWorld(viewport) {
   // passive:false is safe: the app shell is overflow:hidden — nothing scrolls.
   viewport.addEventListener('wheel', e => {
     e.preventDefault();
-    const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
-    const z = Math.min(4, Math.max(0.1, view.zoom * factor));
+    // Exponential in deltaY: gentle per mouse-wheel notch, and trackpads'
+    // streams of small deltas accumulate smoothly instead of compounding 1.1×.
+    const factor = Math.exp(-e.deltaY * 0.0008);
+    // Zoom-out floor: the whole map just fits the viewport (fallback 0.1).
+    const ms = getMapSize?.();
+    const minZoom = ms?.w > 0 && ms?.h > 0
+      ? Math.min(4, Math.min(viewport.clientWidth / ms.w, viewport.clientHeight / ms.h))
+      : 0.1;
+    const z = Math.min(4, Math.max(minZoom, view.zoom * factor));
     const w = screenToWorld(e.clientX, e.clientY, view);
     view.panX = e.clientX - w.x * z;
     view.panY = e.clientY - w.y * z;

@@ -15,9 +15,10 @@ HP tracking, live token movement with distance rulers.
 
 - Everyone uses the same campaign link. First to claim DM is DM; everyone else
   claims or creates a character (name, token image, walk speed).
-- DM: upload map → calibrate grid (two clicks on intersections) → set start
-  tile → reveal with the fog tool as the party explores. Doors, monsters, and
-  HP tracking live in the left rail.
+- DM: upload map → place two points on grid intersections (pan/zoom freely,
+  a third click adjusts) → OK → fine-tune → set start tile. New maps start
+  fully revealed with the grid hidden — paint fog ON and toggle the grid as
+  you like. Doors, monsters, and HP tracking live in the left rail.
 - Players: drag your token (only within revealed squares — the label shows
   distance in feet and turns red past your walk speed). The 📏 button toggles
   rulers for yourself.

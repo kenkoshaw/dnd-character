@@ -34,7 +34,7 @@ export function enterCampaign(root, cid, meta) {
   viewport.id = 'viewport';
   root.appendChild(viewport);
 
-  ctx.world = createWorld(viewport);
+  ctx.world = createWorld(viewport, () => ctx.mapSize);
   ctx.layers = {
     map: createMapLayer(ctx.world.el),
     grid: createGridLayer(ctx.world.el),

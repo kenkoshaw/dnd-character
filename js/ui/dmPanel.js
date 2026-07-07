@@ -30,7 +30,9 @@ export function showDmPanel(rail) {
         await store.write(`campaigns/${ctx.cid}/maps/${mapId}`, {
           name: file.name.replace(/\.[^.]+$/, ''),
           image,
-          grid: { cellPx: 50, offX: 0, offY: 0, color: '#000000', opacity: 0.4, visible: true },
+          // Grid overlay starts hidden — calibration forces lines locally;
+          // the DM opts into showing it to everyone via the tune checkbox.
+          grid: { cellPx: 50, offX: 0, offY: 0, color: '#000000', opacity: 0.4, visible: false },
         });
         await store.write(`campaigns/${ctx.cid}/activeMapId`, mapId);
         const m = await store.readOnce(`campaigns/${ctx.cid}/maps/${mapId}`);
