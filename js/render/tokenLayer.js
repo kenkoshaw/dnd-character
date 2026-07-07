@@ -26,9 +26,10 @@ export function createTokenLayer(worldEl) {
 
   // ---- characters ----
   function renderCharacters(chars) {
+    // The dragged element must stay ATTACHED — even a detach+reappend drops
+    // its pointer capture, which cancels the drag after the first write echo.
     const keep = draggingId ? charsEl.querySelector(`[data-char-id="${draggingId}"]`) : null;
-    charsEl.innerHTML = '';
-    if (keep) charsEl.appendChild(keep);
+    for (const child of [...charsEl.children]) if (child !== keep) child.remove();
     if (!ctx.grid) return;
     const size = ctx.grid.cellPx / 2; // ¼ of a cell's area = half its side
     for (const [id, ch] of Object.entries(chars || {})) {
@@ -65,10 +66,10 @@ export function createTokenLayer(worldEl) {
   let libCache = {};
   function renderMonsters(monsters, library) {
     if (library) libCache = library;
-    // same dragging guard as renderCharacters: don't destroy the element mid-drag
+    // same dragging guard as renderCharacters: the dragged element must stay
+    // ATTACHED or its pointer capture (and the drag) dies on the write echo
     const keep = draggingId ? monstersEl.querySelector(`[data-monster-id="${draggingId}"]`) : null;
-    monstersEl.innerHTML = '';
-    if (keep) monstersEl.appendChild(keep);
+    for (const child of [...monstersEl.children]) if (child !== keep) child.remove();
     if (!ctx.grid || !(ctx.grid.cellPx > 0)) return;
     const isDm = ctx.role?.kind === 'dm';
     for (const [id, m] of Object.entries(monsters || {})) {
@@ -123,7 +124,7 @@ export function createTokenLayer(worldEl) {
     // Presence cleanup: a killed tab mid-drag must not leave a ghost ruler.
     store.dropOnDisconnect(`campaigns/${ctx.cid}/drags/${sessionId}`);
     el.classList.add('dragging');
-    el.setPointerCapture(e.pointerId);
+    try { el.setPointerCapture(e.pointerId); } catch {} // inactive pointer: listeners still drive the drag
 
     const speed = charId ? ctx.characters?.[charId]?.speed : null;
     ctx.onDragUpdate?.({ start, current: start, speed, active: true }); // ruler hook (Task 13)
